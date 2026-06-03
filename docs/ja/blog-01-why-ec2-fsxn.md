@@ -22,29 +22,114 @@ Broadcom による VMware 買収後のライセンス変更をきっかけに、
 
 ## 移行先の選択肢を整理する
 
-VMware ワークロードの移行先は、大きく3つのカテゴリに分かれます。
+VMware ワークロードの移行先について、AWS は公式に5つのパスウェイを提示しています。[（参考: AWS for VMware — Comprehensive Pathways）](https://aws.amazon.com/vmware/explore/)
 
-### 1. VMware を AWS で継続する（Amazon EVS）
+### AWS 公式 VMware パスウェイ全体像
 
-Amazon Elastic VMware Service (EVS) を使えば、VPC 内で VMware Cloud Foundation を直接動かせます。既存の vSphere スキルセットをそのまま活かせる反面、VMware ライセンスは引き続き必要です。
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│              VMware ワークロードの AWS パスウェイ                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. Migrate to Amazon EC2（リホスト）                                │
+│     └─ VMware VM → EC2 インスタンス化                               │
+│        ツール: AWS Transform, MGN, CMC, Shift Toolkit              │
+│                                                                     │
+│  2. Modernize on AWS（モダナイゼーション）                            │
+│     └─ コンテナ化 / サーバーレス化                                   │
+│        → Amazon ECS / EKS (EC2 mode / Fargate)                     │
+│        → AWS Lambda / AWS Batch                                     │
+│        → Amazon WorkSpaces (VDI)                                    │
+│                                                                     │
+│  3. Run VMware on AWS（VMware 継続）                                 │
+│     └─ Amazon Elastic VMware Service (EVS)                          │
+│        既存 vSphere スキル・ツールをそのまま活用                      │
+│                                                                     │
+│  4. Run AWS on-premises（オンプレ AWS）                              │
+│     └─ AWS Outposts                                                 │
+│                                                                     │
+│  5. Run third-party hypervisors on AWS（パートナーソリューション）    │
+│     └─ Red Hat OpenShift Service on AWS (ROSA)                      │
+│     └─ Nutanix Cloud Clusters on AWS (NC2)                          │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+> 出典: [AWS for VMware Partner Offerings](https://aws.amazon.com/vmware/partner-offerings/) — "AWS offers the most comprehensive set of migration and modernization options for VMware-based workloads - from relocating to Amazon EVS, to rehosting on Amazon EC2, containerizing with Amazon EKS, or transitioning to running third-party hypervisors in the cloud like ROSA and NC2 on AWS."（内容を要約して記載。ライセンス制約に基づき表現を言い換え。）
+
+### 各パスウェイの詳細
+
+#### 1. Amazon EC2 へリホスト
+
+VMware VM を EC2 インスタンスとして移行する最もストレートなパス。AWS Transform for VMware（Agentic AI ベースの自動移行サービス）が 2025年に GA し、大規模移行の自動化が進んでいます。
+
+**ストレージ構成の選択肢:**
+- **EBS のみ**: シンプル。MGN / AWS Transform で自動化
+- **EBS (OS) + FSx for ONTAP (Data)**: ONTAP 機能の継続。Shift Toolkit / CMC で対応 ← **本検証のスコープ**
+
+#### 2. モダナイゼーション（コンテナ / サーバーレス）
+
+EC2 にリホストした後の次のステップとして、ワークロードの特性に応じたモダナイゼーションが可能です。
+
+| ターゲット | 適するワークロード | FSxN 連携 |
+|-----------|------------------|-----------|
+| **ECS / EKS (EC2 mode)** | ステートフル・コンテナ（DB、ミドルウェア） | ✅ iSCSI / NFS マウント可能 |
+| **ECS / EKS (Fargate)** | ステートレス・マイクロサービス | △ EFS 経由のみ（iSCSI 不可） |
+| **AWS Lambda** | イベント駆動・短時間処理 | △ EFS マウント可能、iSCSI 不可 |
+| **AWS Batch** | バッチ処理・HPC | ✅ EC2 mode なら iSCSI 可能 |
+| **Amazon WorkSpaces** | VDI（仮想デスクトップ） | ✅ FSxN ファイル共有 |
+
+**重要**: VM をそのままコンテナ化するわけではありません。EC2 リホスト → アプリケーションのコンテナ化 → Fargate/Lambda への段階的移行というジャーニーになります。
+
+#### 3. Amazon EVS（VMware を AWS で継続）
+
+Amazon Elastic VMware Service を使えば、VPC 内で VMware Cloud Foundation (VCF) を EC2 ベアメタル上に直接デプロイできます。既存の vSphere スキルセットをそのまま活かし、FSx for ONTAP を外部データストアとして接続可能です。
 
 **適するケース:** VMware 依存のアプリケーション資産が大量にあり、短期間での脱 VMware が困難な場合。
 
-### 2. EC2 へリホスト（EBS のみ）
+#### 4. AWS Outposts（オンプレ AWS）
 
-AWS Application Migration Service (MGN) を使って、VM を EC2 インスタンスとして移行するアプローチです。AWS 標準の移行パスで、幅広い OS をサポートします。
+レイテンシ要件やデータレジデンシー要件でクラウドに移行できないワークロード向け。本検証のスコープ外。
 
-**適するケース:** ストレージに特別な要件がなく、EBS (gp3/io2) で十分な場合。ONTAP を使っていない環境。
+#### 5. パートナーソリューション（ROSA / NC2）
 
-### 3. EC2 + FSx for ONTAP へリホスト（ハイブリッドストレージ）
+**Red Hat OpenShift Service on AWS (ROSA):** OpenShift ベースのフルマネージドアプリケーションプラットフォーム。コンテナ化されたワークロードの実行環境として、VM から OpenShift への移行パスを提供。[（参考）](https://aws.amazon.com/rosa/)
 
-OS ディスクは EBS、データディスクは FSx for ONTAP の iSCSI LUN に配置するハイブリッド構成です。
+**Nutanix Cloud Clusters on AWS (NC2):** Nutanix のハイパーバイザーを EC2 インフラ上で実行。VMware からの移行先としてセルフマネージド型のハイパーバイザーを選択するケース。[（参考）](https://aws.amazon.com/blogs/apn/accelerate-vmware-migrations-to-aws-with-nutanix-nc2/)
 
-**適するケース:** ONTAP ストレージを使用中で、Snapshot/Clone/SnapMirror/Storage Efficiency を AWS でも継続したい場合。
+### 本検証の位置づけ
+
+```
+VMware ESXi (現在地)
+    │
+    ├─ Phase 1: リホスト ← 本検証のスコープ
+    │   EC2 + FSx for ONTAP (iSCSI)
+    │   Shift Toolkit でデータディスク変換
+    │
+    ├─ Phase 2: リプラットフォーム（将来）
+    │   EC2 上のアプリをコンテナ化
+    │   → ECS/EKS + FSxN (NFS/iSCSI)
+    │
+    └─ Phase 3: リファクタ（将来）
+        ステートレス化 → Fargate / Lambda
+        データ層は FSxN / S3 / DynamoDB に分離
+```
+
+本検証は **Phase 1（リホスト）** に集中しますが、EC2 + FSx for ONTAP の構成は Phase 2 以降への移行パスを閉じない設計になっています。FSx for ONTAP は EC2 だけでなく ECS/EKS からも NFS/iSCSI でアクセスできるため、コンテナ化した後もデータ層をそのまま維持できます。
 
 ## なぜ「EC2 + FSx for ONTAP」なのか
 
-3番目の選択肢に注目する理由を整理します。
+5つのパスウェイの中で「EC2 + FSx for ONTAP」に注目する理由を整理します。
+
+### リホストの入口であり、モダナイゼーションの基盤
+
+EC2 + FSx for ONTAP の構成は、単なるリホスト先ではなく、**将来のモダナイゼーションを閉じない設計**です。
+
+- **今（Phase 1）**: VM を EC2 にリホスト。データディスクは FSxN iSCSI
+- **次（Phase 2）**: アプリをコンテナ化。ECS/EKS から FSxN に NFS/iSCSI でアクセス継続
+- **将来（Phase 3）**: ステートレス化した部分は Fargate/Lambda へ。データ層の FSxN はそのまま
+
+FSx for ONTAP がマルチプロトコル（NFS/SMB/iSCSI）でアクセスできることが、この段階的移行を支えます。EC2 の iSCSI LUN として使っていたボリュームを、後から EKS Pod に NFS マウントすることも可能です。
 
 ### ONTAP の価値は「容量」ではなく「機能」
 
@@ -126,10 +211,16 @@ Shift Toolkit は、ONTAP ユーザーが既存の NFS データストア上の 
 
 ## 参考リンク
 
+- [AWS for VMware — Comprehensive Pathways](https://aws.amazon.com/vmware/explore/)
+- [AWS Transform for VMware](https://aws.amazon.com/transform/vmware/)
+- [AWS for VMware Partner Offerings (ROSA, NC2)](https://aws.amazon.com/vmware/partner-offerings/)
 - [NetApp Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-overview.html)
 - [AWS Storage Blog: Seamless migration from VMware to FSx ONTAP and EC2](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
 - [AWS Storage Blog: BlueXP Migration Advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/)
 - [Amazon FSx for NetApp ONTAP](https://aws.amazon.com/fsx/netapp-ontap/)
+- [Amazon Elastic VMware Service (EVS)](https://aws.amazon.com/evs/)
+- [Red Hat OpenShift Service on AWS (ROSA)](https://aws.amazon.com/rosa/)
+- [Nutanix Cloud Clusters on AWS (NC2)](https://aws.amazon.com/blogs/apn/accelerate-vmware-migrations-to-aws-with-nutanix-nc2/)
 - [AWS VMware Migration Accelerator](https://aws.amazon.com/vmware/migrationaccelerator/)
 - [NetApp Blog: Simplify VM migration with Shift Toolkit](https://www.netapp.com/blog/simplify-vm-migration-shift-toolkit/)
 
