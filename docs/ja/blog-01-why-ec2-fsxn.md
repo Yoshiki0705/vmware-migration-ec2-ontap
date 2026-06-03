@@ -87,15 +87,54 @@ Amazon Elastic VMware Service を使えば、VPC 内で VMware Cloud Foundation 
 
 **適するケース:** VMware 依存のアプリケーション資産が大量にあり、短期間での脱 VMware が困難な場合。
 
-#### 4. AWS Outposts（オンプレ AWS）
+#### 4. AWS Outposts（オンプレ AWS + NetApp 外部ストレージ）
 
-レイテンシ要件やデータレジデンシー要件でクラウドに移行できないワークロード向け。本検証のスコープ外。
+AWS Outposts は、AWS インフラをオンプレミスに配置するフルマネージドサービスです。2024年12月に AWS は Outposts でのサードパーティブロックストレージ統合を発表し、**NetApp ONTAP と StorageGRID が AWS Service Ready Program で検証済み**のストレージパートナーとして利用可能になっています。[（参考: AWS Blog）](https://aws.amazon.com/blogs/compute/new-simplifying-the-use-of-third-party-block-storage-with-aws-outposts/) [（参考: NetApp）](https://netapp.com/aws/outposts/)
 
-#### 5. パートナーソリューション（ROSA / NC2）
+EC2 インスタンスのデータボリュームとして NetApp ONTAP の iSCSI LUN を AWS コンソールから直接アタッチでき、さらに 2025年7月にはブートボリュームのサポートも追加されています。[（参考: AWS Blog）](https://aws.amazon.com/blogs/compute/deploying-external-boot-volumes-with-aws-outposts/)
 
-**Red Hat OpenShift Service on AWS (ROSA):** OpenShift ベースのフルマネージドアプリケーションプラットフォーム。コンテナ化されたワークロードの実行環境として、VM から OpenShift への移行パスを提供。[（参考）](https://aws.amazon.com/rosa/)
+**NetApp エコシステムの観点**: Outposts + ONTAP の組み合わせにより、「コンピュートは AWS マネージド、ストレージは既存の ONTAP」という**コンピュートとストレージの分離**が実現します。これはオンプレ ONTAP → FSx for ONTAP（クラウド）→ Outposts + ONTAP（ハイブリッド）という一貫したデータプラットフォームの構築を可能にします。
 
-**Nutanix Cloud Clusters on AWS (NC2):** Nutanix のハイパーバイザーを EC2 インフラ上で実行。VMware からの移行先としてセルフマネージド型のハイパーバイザーを選択するケース。[（参考）](https://aws.amazon.com/blogs/apn/accelerate-vmware-migrations-to-aws-with-nutanix-nc2/)
+#### 5. パートナーソリューション（ROSA / NC2 + NetApp 連携の拡大）
+
+**Red Hat OpenShift Service on AWS (ROSA):** OpenShift ベースのフルマネージドアプリケーションプラットフォーム。コンテナ化されたワークロードの実行環境として、VM から OpenShift への移行パスを提供。NetApp Trident CSI ドライバにより、ROSA の Pod から FSx for ONTAP に NFS/iSCSI でアクセス可能です。[（参考）](https://aws.amazon.com/rosa/)
+
+**Nutanix Cloud Clusters on AWS (NC2) + NetApp ONTAP:**
+
+2026年4月、Nutanix と NetApp は戦略的パートナーシップを発表し、**NetApp ONTAP が Nutanix Cloud Platform の外部ストレージとして統合される**ことが明らかになりました。NFS ベースの接続により、コンピュート（Nutanix AHV）とストレージ（ONTAP）の独立スケーリングが可能になります。[（参考: NetApp Blog）](https://www.netapp.com/blog/modernize-virtualization-nutanix-partnership/) [（参考: NetApp Press Release）](https://www.netapp.com/newsroom/press-releases/news-rel-20260407-695711/)
+
+Nutanix CEO Rajiv Ramaswami 氏は「外部ストレージプラットフォームのサポートが、大幅なハードウェア変更なしでの Nutanix 移行を簡素化している」と述べています。（Q1 FY2027 Earnings Call での発言として報道）
+
+**NetApp エコシステムとしての全体像:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          NetApp ONTAP — データの可搬性と一貫性                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  オンプレ                    AWS                            │
+│  ┌──────────────┐           ┌──────────────────────┐       │
+│  │ ONTAP (FAS/  │◄─SnapMirror─►│ FSx for ONTAP      │       │
+│  │   AFF)       │           │  (EC2/ECS/EKS/EVS)  │       │
+│  └──────┬───────┘           └──────────┬───────────┘       │
+│         │                              │                    │
+│  ┌──────▼───────┐           ┌──────────▼───────────┐       │
+│  │ VMware ESXi  │           │ Amazon EC2 (Nitro)   │       │
+│  │ Nutanix AHV  │           │ Amazon EVS           │       │
+│  │ Hyper-V      │           │ ROSA                 │       │
+│  │ OpenShift    │           │ NC2 on AWS           │       │
+│  │ Proxmox      │           │ Outposts + ONTAP     │       │
+│  └──────────────┘           └──────────────────────┘       │
+│                                                             │
+│  共通: Snapshot / FlexClone / SnapMirror / Efficiency       │
+│  共通: NFS / SMB / iSCSI / S3 マルチプロトコル              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+この図が示すのは、**ONTAP はハイパーバイザーやクラウドの選択に依存しないデータプラットフォーム**だということです。VMware から EC2 へ、あるいは Nutanix へ、さらには ROSA へとコンピュート層を変えても、データ層の ONTAP は一貫して利用でき、SnapMirror でデータを移動・保護できます。
+
+Shift Toolkit による VMware → EC2/FSxN 移行は、このエコシステムの中の**1つの移行パス**であり、将来的に NC2 + ONTAP や ROSA + FSxN へのワークロード再配置が必要になった場合にも、データ層の互換性が保たれます。
 
 ### 本検証の位置づけ
 
