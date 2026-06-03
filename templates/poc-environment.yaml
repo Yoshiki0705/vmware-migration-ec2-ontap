@@ -1,0 +1,246 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Shift Toolkit PoC Environment - VPC + FSx for ONTAP + EC2 Target Instances
+  For VMware ESXi to EC2/FSxN migration verification.
+
+# ==============================================================================
+# Parameters
+# ==============================================================================
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: '10.0.0.0/16'
+    Description: VPC CIDR block
+
+  PrivateSubnet1Cidr:
+    Type: String
+    Default: '10.0.1.0/24'
+    Description: Private subnet 1 (AZ-a) for FSxN preferred
+
+  PrivateSubnet2Cidr:
+    Type: String
+    Default: '10.0.2.0/24'
+    Description: Private subnet 2 (AZ-c) for FSxN standby
+
+  FsxnStorageCapacity:
+    Type: Number
+    Default: 1024
+    MinValue: 1024
+    Description: FSx for ONTAP SSD storage capacity in GiB
+
+  FsxnThroughput:
+    Type: Number
+    Default: 512
+    AllowedValues: [128, 256, 512, 1024, 2048, 4096]
+    Description: FSx for ONTAP throughput capacity in MB/s
+
+  FsxnDeploymentType:
+    Type: String
+    Default: MULTI_AZ_1
+    AllowedValues: [MULTI_AZ_1, SINGLE_AZ_1]
+    Description: FSxN deployment type
+
+  Ec2KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access to target instances
+
+  OnPremCidr:
+    Type: String
+    Default: '192.168.0.0/16'
+    Description: On-premises network CIDR (for Security Group ingress)
+
+# ==============================================================================
+# Resources
+# ==============================================================================
+Resources:
+
+  # ---------- VPC ----------
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-vpc
+        - Key: Project
+          Value: shift-toolkit-vmware-to-ec2
+
+  # ---------- Subnets ----------
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnet1Cidr
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-private-1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnet2Cidr
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-private-2
+
+  # ---------- Route Table ----------
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-private-rt
+
+  PrivateSubnet1RtAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RtAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # ---------- Security Groups ----------
+  FsxnSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for FSx for ONTAP
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        # iSCSI from EC2
+        - IpProtocol: tcp
+          FromPort: 3260
+          ToPort: 3260
+          SourceSecurityGroupId: !Ref Ec2SecurityGroup
+          Description: iSCSI from EC2 instances
+        # NFS from EC2
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref Ec2SecurityGroup
+          Description: NFS from EC2 instances
+        # ONTAP intercluster (SnapMirror)
+        - IpProtocol: tcp
+          FromPort: 11104
+          ToPort: 11105
+          CidrIp: !Ref OnPremCidr
+          Description: SnapMirror from on-prem ONTAP
+        # HTTPS (ONTAP management)
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref OnPremCidr
+          Description: ONTAP REST API from on-prem
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-fsxn-sg
+
+  Ec2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for target EC2 instances
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        # SSH from on-prem
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref OnPremCidr
+          Description: SSH from on-prem
+        # RDP from on-prem
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref OnPremCidr
+          Description: RDP from on-prem
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-ec2-sg
+
+  # ---------- FSx for ONTAP ----------
+  FsxnFileSystem:
+    Type: AWS::FSx::FileSystem
+    Properties:
+      FileSystemType: ONTAP
+      StorageCapacity: !Ref FsxnStorageCapacity
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref FsxnSecurityGroup
+      OntapConfiguration:
+        DeploymentType: !Ref FsxnDeploymentType
+        ThroughputCapacity: !Ref FsxnThroughput
+        PreferredSubnetId: !Ref PrivateSubnet1
+        # WeeklyMaintenanceStartTime and DailyAutomaticBackupStartTime
+        # will use defaults
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-fsxn
+        - Key: Project
+          Value: shift-toolkit-vmware-to-ec2
+
+  # ---------- EC2 Instance (Linux target) ----------
+  Ec2LinuxTarget:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: m5.large
+      SubnetId: !Ref PrivateSubnet1
+      SecurityGroupIds:
+        - !Ref Ec2SecurityGroup
+      KeyName: !Ref Ec2KeyPairName
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 50
+            VolumeType: gp3
+            Encrypted: true
+      Tags:
+        - Key: Name
+          Value: shift-toolkit-poc-linux-target
+        - Key: Project
+          Value: shift-toolkit-vmware-to-ec2
+        - Key: Role
+          Value: migration-target
+
+# ==============================================================================
+# Outputs
+# ==============================================================================
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref Vpc
+
+  PrivateSubnet1Id:
+    Description: Private Subnet 1 ID (FSxN preferred)
+    Value: !Ref PrivateSubnet1
+
+  PrivateSubnet2Id:
+    Description: Private Subnet 2 ID (FSxN standby)
+    Value: !Ref PrivateSubnet2
+
+  FsxnFileSystemId:
+    Description: FSx for ONTAP File System ID
+    Value: !Ref FsxnFileSystem
+
+  FsxnSecurityGroupId:
+    Description: FSxN Security Group ID
+    Value: !Ref FsxnSecurityGroup
+
+  Ec2SecurityGroupId:
+    Description: EC2 Security Group ID
+    Value: !Ref Ec2SecurityGroup
+
+  Ec2LinuxTargetId:
+    Description: Linux target EC2 Instance ID
+    Value: !Ref Ec2LinuxTarget

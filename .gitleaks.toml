@@ -39,4 +39,5 @@ paths = [
   '''\.gitignore$''',
   '''.*\.example$''',
   '''.*\.md$''',
+  '''templates/.*\.yaml$''',
 ]
