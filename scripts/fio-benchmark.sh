@@ -48,7 +48,7 @@ echo "╚═══════════════════════�
 echo ""
 echo "⚠️  WARNING: ALL DATA on $DEVICE WILL BE DESTROYED!"
 echo ""
-read -p "Type 'YES' to continue: " CONFIRM
+read -rp "Type 'YES' to continue: " CONFIRM
 if [[ "$CONFIRM" != "YES" ]]; then
     echo "Aborted."
     exit 0

@@ -52,7 +52,7 @@ def parse_fio_json(filepath: Path) -> dict:
 def format_iops(value: float) -> str:
     """Format IOPS with K suffix for readability."""
     if value >= 1000:
-        return f"{value/1000:.1f}K"
+        return f"{value / 1000:.1f}K"
     return f"{value:.0f}"
 
 
@@ -62,8 +62,8 @@ def generate_markdown_table(results: list[dict], env_data: dict | None) -> str:
 
     if env_data:
         lines.append(f"**Benchmark Run ID**: `{env_data.get('benchmark_run_id', 'N/A')}`\n")
-        lines.append(f"| Parameter | Value |")
-        lines.append(f"|-----------|-------|")
+        lines.append("| Parameter | Value |")
+        lines.append("|-----------|-------|")
         lines.append(f"| Instance Type | {env_data.get('instance_type', 'N/A')} |")
         lines.append(f"| Device Size | {env_data.get('device_size_gb', 'N/A')} GB |")
         lines.append(f"| iSCSI Sessions | {env_data.get('iscsi_sessions', 'N/A')} |")
@@ -72,8 +72,12 @@ def generate_markdown_table(results: list[dict], env_data: dict | None) -> str:
         lines.append(f"| Kernel | {env_data.get('kernel', 'N/A')} |")
         lines.append("")
 
-    lines.append("| Test | IOPS | Throughput (MiB/s) | Avg Lat (μs) | P50 (μs) | P99 (μs) | Max (μs) |")
-    lines.append("|------|------|--------------------|-------------|----------|----------|----------|")
+    lines.append(
+        "| Test | IOPS | Throughput (MiB/s) | Avg Lat (μs) | P50 (μs) | P99 (μs) | Max (μs) |"
+    )
+    lines.append(
+        "|------|------|--------------------|-------------|----------|----------|----------|"
+    )
 
     for r in results:
         lines.append(
@@ -82,8 +86,10 @@ def generate_markdown_table(results: list[dict], env_data: dict | None) -> str:
         )
 
     lines.append("")
-    lines.append("> ⚠️ These results are a **sizing reference** for this specific test environment. "
-                 "They do NOT represent FSx for ONTAP service limits.")
+    lines.append(
+        "> ⚠️ These results are a **sizing reference** for this specific test environment. "
+        "They do NOT represent FSx for ONTAP service limits."
+    )
 
     return "\n".join(lines)
 
