@@ -84,7 +84,7 @@ FSxN の管理エンドポイントに SSH 接続して ONTAP CLI で設定:
 ssh fsxadmin@<management-endpoint-ip>
 ```
 
-```
+```text
 # SVM 上にボリューム作成（データディスク用）
 FsxId0123456789abcdef::> volume create -vserver svm1 -volume data_vol01 \
   -aggregate aggr1 -size 100g -state online -type RW \
@@ -143,6 +143,7 @@ sudo multipath -ll
 ```
 
 **確認すべきポイント:**
+
 - `status=active` のパスが少なくとも1つあること
 - Multi-AZ の場合、preferred path が `prio=50`、standby が `prio=10`
 - `features` に `queue_if_no_path` があること（フェイルオーバー時に I/O をキューイング）

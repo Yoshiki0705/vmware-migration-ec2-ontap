@@ -18,7 +18,7 @@
 
 ### アーキテクチャ
 
-```
+```text
 [移行元: オンプレミス]              [移行先: AWS]
 VMware ESXi                        Amazon EC2 (Nitro)
   └── VM (VMDK)                      ├── Boot: EBS gp3
@@ -70,7 +70,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 
 ## ディレクトリ構成
 
-```
+```text
 docs/
   ├── ja/              日本語ドキュメント
   │   └── research.md  調査レポート（完了）
@@ -111,12 +111,14 @@ aws cloudformation deploy \
 ## 前提条件
 
 ### オンプレミス側
+
 - VMware vCenter 7.0.3 以降
 - ONTAP 9.14.1 以降（NFS データストア）
 - NetApp Shift Toolkit（Windows Server 上にインストール）
 - NetApp Support アカウント（Early Preview 有効化用）
 
 ### AWS 側
+
 - AWS アカウント + 適切な IAM 権限
 - VPN or Direct Connect（オンプレ ↔ AWS 間接続）
 - 東京リージョン (ap-northeast-1) 推奨
@@ -157,7 +159,7 @@ The key point of this verification is not just "migrating from VMware to AWS." I
 
 ### Architecture
 
-```
+```text
 [Source: On-Premises]              [Target: AWS]
 VMware ESXi                        Amazon EC2 (Nitro)
   └── VM (VMDK)                      ├── Boot: EBS gp3
@@ -209,7 +211,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 
 ## Directory Structure
 
-```
+```text
 docs/
   ├── ja/              Japanese documentation
   │   └── research.md  Research report (complete)
@@ -250,12 +252,14 @@ aws cloudformation deploy \
 ## Prerequisites
 
 ### On-Premises
+
 - VMware vCenter 7.0.3+
 - ONTAP 9.14.1+ (NFS datastore)
 - NetApp Shift Toolkit (installed on Windows Server)
 - NetApp Support account (for Early Preview enablement)
 
 ### AWS
+
 - AWS account with appropriate IAM permissions
 - VPN or Direct Connect (on-prem ↔ AWS connectivity)
 - Tokyo Region (ap-northeast-1) recommended

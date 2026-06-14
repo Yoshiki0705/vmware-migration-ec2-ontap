@@ -39,10 +39,12 @@ AWS Storage Blog でも、VMware ワークロードを Amazon EC2 と Amazon FSx
 ### 2.2 サポートされるハイパーバイザー
 
 **ソース（移行元）:**
+
 - VMware ESXi（vSphere 7.0.3 以降で検証済み）
 - Microsoft Hyper-V（Windows Server 2019/2022/2025）
 
 **ターゲット（移行先）:**
+
 - Microsoft Hyper-V
 - VMware ESXi
 - Red Hat OpenShift Virtualization（4.17 以降）
@@ -51,6 +53,7 @@ AWS Storage Blog でも、VMware ワークロードを Amazon EC2 と Amazon FSx
 - KVM（ディスク変換のみ：VMDK → QCOW2/RAW）
 
 **ディスクフォーマット変換:**
+
 - VMDK → VHDX（Hyper-V 向け）
 - VMDK → QCOW2（KVM 互換ハイパーバイザー向け）
 - VMDK → RAW（KVM 互換ハイパーバイザー向け）
@@ -63,10 +66,12 @@ AWS Storage Blog でも、VMware ワークロードを Amazon EC2 と Amazon FSx
 ### 2.3 サポート対象ゲスト OS
 
 **Windows:**
+
 - Windows 10/11
 - Windows Server 2016/2019/2022/2025
 
 **Linux:**
+
 - RHEL 7.2+/8.x/9.x
 - CentOS 7.x
 - Alma Linux 7.x
@@ -81,6 +86,7 @@ AWS Storage Blog でも、VMware ワークロードを Amazon EC2 と Amazon FSx
 Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーにある。
 
 **動作原理:**
+
 1. **単一ボリューム・マルチプロトコル**: ONTAP では1つのボリュームに NFS と CIFS/SMB の両方でアクセス可能。VMware ESXi は NFS でアクセスし、Hyper-V は SMB でアクセスする
 2. **FlexClone**: データコピーなしでファイルまたはボリューム全体を高速クローン。ストレージシステム上の共通ブロックを複数のファイル/ボリューム間で共有
 3. **VM ディスク変換**: FlexClone を利用して VMDK を VHDX/QCOW2 等に変換。クローンと変換を1ステップで実行
@@ -92,6 +98,7 @@ Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーに�
 ### 2.5 移行ワークフロー（ステップバイステップ）
 
 **Phase 1: 準備（Prepare VM）**
+
 1. Shift Toolkit が VMware/ターゲットハイパーバイザーに接続し、ホスト・VM のメタデータを収集
 2. VM を選択し、Shift Toolkit が必要なスクリプトを注入
    - VMware Tools 削除スクリプト
@@ -99,6 +106,7 @@ Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーに�
 3. **ソース VM への変更はスクリプトコピーのみ**（ロールバック可能）
 
 **Phase 2: 移行実行（Migrate）**
+
 1. Blueprint 内の全 VM の既存スナップショットを削除
 2. ソースで VM スナップショットをトリガー
 3. ディスク変換前にボリュームスナップショットをトリガー
@@ -108,6 +116,7 @@ Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーに�
 7. VMware Tools を削除し、トリガースクリプト/cron ジョブで IP アドレスを割り当て
 
 **Phase 3: 検証（Validate）**
+
 - VM の正常起動確認
 - データ整合性確認
 - ネットワーク設定確認
@@ -141,6 +150,7 @@ Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーに�
 NetApp 公式ドキュメントの「Migrate VMs to Amazon EC2」セクションでは、**Cirrus Migrate Cloud (CMC)** の MigrateOps 機能を使用した移行手順が文書化されている。
 
 **アーキテクチャ概要:**
+
 - ソース: VMware vSphere（オンプレミスまたは VMware Cloud on AWS）
 - ターゲット:
   - OS ディスク → Amazon EBS（AMI としてブート）
@@ -148,6 +158,7 @@ NetApp 公式ドキュメントの「Migrate VMs to Amazon EC2」セクション
 - 移行ツール: Cirrus Migrate Cloud + MigrateOps（YAML ベース自動化）
 
 **CMC の特徴:**
+
 - エージェントベースのブロックレベルレプリケーション
 - ソース VM 稼働中にバックグラウンドで OS ディスクを bit-by-bit で移行
 - 最終同期 + カットオーバーで短時間の停止のみ
@@ -162,10 +173,12 @@ NetApp 公式ドキュメントの「Migrate VMs to Amazon EC2」セクション
 今回の Early Preview では、VMware ESXi から AWS EC2 への移行において、**データディスクを Amazon FSx for NetApp ONTAP 上に配置する**アプローチが対象です。これは、VMware ワークロードの移行先をオンプレミスの別ハイパーバイザーだけでなく、AWS 上の Amazon EC2 へ広げる可能性を持つ取り組みです。
 
 **Early Preview の対象範囲（確認済み）:**
+
 - データディスクの FSx for ONTAP への配置
 - 利用には NetApp 側での有効化が必要
 
 **想定される構成（要検証）:**
+
 - OS ディスク → Amazon EBS（EC2 ブート要件）
 - データディスク → FSx for ONTAP（iSCSI LUN）
 - Shift Toolkit の FlexClone 変換がどこまで自動化されるかは Early Preview の実機確認で明らかにする
@@ -187,7 +200,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 
 **想定されるシナリオ別の対応:**
 
-```
+```text
 シナリオ A: Shift Toolkit が OS + Data 両方をカバー
   → Shift Toolkit 単体で完結。検証はシンプル。
 
@@ -202,6 +215,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 ```
 
 **この課題が解決するまでの方針:**
+
 - Phase 2（移行テスト）の着手は Q1-Q4 の回答後とする
 - Phase 1（環境準備）は並行して進められる
 - シナリオ B を想定した検証計画をベースラインとして準備する
@@ -210,7 +224,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 
 顧客が VMware → EC2 移行ツールを選択する際の判断基準:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │ VMware → EC2 移行ツール選択フローチャート                      │
 ├─────────────────────────────────────────────────────────────┤
@@ -257,7 +271,8 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 ### 3.3 EC2 + FSxN 構成パターン
 
 **推奨構成:**
-```
+
+```text
 ┌─────────────────────────────────────┐
 │          Amazon EC2 Instance         │
 ├─────────────────────────────────────┤
@@ -276,6 +291,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 ```
 
 **BlueXP Workload Factory Migration Advisor のストレージ戦略:**
+
 - **OS ボリューム**: EBS gp3（EC2 ブート要件）
 - **データボリューム**: FSx for ONTAP iSCSI LUN
   - Performance-optimized: 高 IOPS 要件
@@ -369,12 +385,14 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 > **「VMware の次をどうするか決めていますか? 今使っているストレージの種類によって、最適な移行パスが変わります。」**
 
 この質問から始まるデシジョンフロー:
+
 1. 現在のストレージは ONTAP か? → Yes: Shift Toolkit / CMC が候補。No: MGN が候補
 2. データディスクの ONTAP 機能（Snapshot, Clone, DR）を AWS でも使い続けたいか? → Yes: FSxN + Shift Toolkit
 3. 移行規模は? → 大規模: CMC。中小規模/PoC: Shift Toolkit
 4. いつ移行したいか? → 今すぐ（GA ツールのみ）: MGN or CMC。将来計画: Shift Toolkit Early Preview を先行検証
 
 **パートナーが顧客に提供できる成果物（本検証から生成）:**
+
 - ツール選択フローチャート（セクション 3.2.2）
 - 競合比較表（セクション 5.1）
 - コスト比較レポート（Phase 3d の結果）
@@ -398,6 +416,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 5. **ソース VM 非破壊**: ソース VM にはスクリプトコピーのみ。失敗時のロールバックが即座に可能
 
 **制約（差別化の裏返し）:**
+
 - ONTAP NFS データストアが前提（非 ONTAP 環境では使えない）
 - Windows 専用ツール
 - EC2 対応は Early Preview（GA 時期未定）
@@ -439,6 +458,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 ### Phase 1: 環境準備
 
 #### AWS 側
+
 | リソース | 構成 | 備考 |
 |---------|------|------|
 | VPC | 専用 VPC + Private Subnets (2 AZ) | FSxN Multi-AZ 用 |
@@ -449,6 +469,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 | IAM | FSxN 管理ロール + EC2 プロビジョニング権限 | 最小権限原則 |
 
 #### オンプレ側
+
 | リソース | 構成 | 備考 |
 |---------|------|------|
 | vCenter | 7.0.3 以降 | Shift Toolkit 接続先 |
@@ -457,6 +478,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 | Shift Toolkit | Windows Server 上にインストール | 100GB ディスク最小 |
 
 #### ネットワーク
+
 - オンプレ ↔ AWS 間の HTTPS (443) 通信確認
 - DNS 解決の確認
 - SnapMirror 用ポート (11104/11105) の開放
@@ -474,11 +496,13 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 | test-app-01 | Ubuntu 2024 | OS: 50GB + Data: 500GB | 大容量ディスク変換速度検証 | m5.large (2 vCPU, 8 GiB) |
 
 **EC2 インスタンスタイプ選定基準:**
+
 - 移行元 VM の vCPU/RAM に対して同等以上の EC2 インスタンスタイプを選定
 - Nitro ベース（m5 以降）を使用（ENA/NVMe ドライバ動作確認のため）
 - 検証用のため最小限のサイズ。本番サイジングは BlueXP Migration Advisor を推奨
 
 #### 移行手順（予定）
+
 1. SnapMirror でオンプレ ONTAP → FSx ONTAP へデータディスクをレプリケーション
 2. Shift Toolkit で VMDK → 中間フォーマット変換（Early Preview の手順に従う）
 3. OS ディスクから AMI 作成（VM Import/Export or CMC 利用）
@@ -570,6 +594,7 @@ fio --name=64k-seqwrite \
 ```
 
 **ベンチマーク結果の記録フォーマット（各テストで必須）:**
+
 - IOPS: avg / P50 / P90 / P95 / P99 / Max
 - Throughput (MB/s): avg
 - Latency (μs): avg / P50 / P90 / P95 / P99 / Max
@@ -611,6 +636,7 @@ fio --name=64k-seqwrite \
 ### Phase 4: ドキュメント・記事化
 
 #### 成果物一覧
+
 - 検証レポート（本リポジトリ `docs/ja/` 配下）
 - アーキテクチャ図（draw.io/diagrams.net）
 - スクリーンショット・エビデンス（`verification/` 配下）
@@ -661,6 +687,7 @@ AWS、NetApp、VMware の観点をつなげると、このプレビューは「V
 ## 9. 参考リンク一覧
 
 ### NetApp 公式ドキュメント
+
 - [Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-overview.html)
 - [Shift Toolkit Migration Workflow](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-migration.html)
 - [Shift Toolkit Supported Versions](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-supported-versions.html)
@@ -671,12 +698,14 @@ AWS、NetApp、VMware の観点をつなげると、このプレビューは「V
 - [More Migration Options](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/migrate-vms-to-ec2-fsxn-summary.html)
 
 ### NetApp ブログ・コミュニティ
+
 - [Simplify and accelerate VM migration with the NetApp Shift Toolkit](https://www.netapp.com/blog/simplify-vm-migration-shift-toolkit/)
 - [Effortless VM Migration: Hypervisor hopping with instant cloning](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Effortless-VM-Migration-Hypervisor-hopping-with-instant-cloning-and-zero-data/ba-p/460596)
 - [Migrate VMware to Amazon EC2 & iSCSI-based FSx for ONTAP](https://www.netapp.com/blog/aws-fsxn-blg-migrate-vmware-to-amazon-ec2-iscsi-based-fsx-for-ontap/)
 - [Migrate VMware Cloud on AWS to Amazon EC2 instances and FSx for ONTAP](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Migrate-VMware-Cloud-on-AWS-to-Amazon-EC2-instances-and-FSx-for-ONTAP/ba-p/458334)
 
 ### AWS 公式ブログ・ドキュメント
+
 - [Seamless migration from any VMware environment to FSx ONTAP and EC2](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
 - [Expedite VMware migration to EC2 and FSxN using BlueXP migration advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/)
 - [Amazon FSx for NetApp ONTAP Documentation](https://aws.amazon.com/documentation-overview/netapp-ontap/)
@@ -684,6 +713,7 @@ AWS、NetApp、VMware の観点をつなげると、このプレビューは「V
 - [AWS VMware Migration Accelerator](https://aws.amazon.com/vmware/migrationaccelerator/)
 
 ### その他
+
 - [VMware on AWS — Modernization with Amazon EVS & FSx for ONTAP](https://www.netapp.com/aws/fsx-ontap/vmware-cloud/)
 - [BlueXP Workload Factory](https://www.netapp.com/bluexp/workload-factory/)
 - [Cirrus Migrate Cloud on AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-stsxln5eru5wo)

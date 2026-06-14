@@ -63,6 +63,7 @@ aws ec2 import-image \
 ```
 
 **パラメータ解説:**
+
 - `--license-type`: `BYOL`（既存ライセンス持ち込み）または `AWS`（AWS 提供ライセンス）
 - `--platform`: `Linux` または `Windows`
 - `--architecture`: `x86_64`（ARM の場合は `arm64`）

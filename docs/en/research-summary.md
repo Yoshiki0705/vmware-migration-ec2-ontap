@@ -16,6 +16,7 @@ The verification focuses not just on "migrating from VMware to AWS" but on confi
 ## Key Findings
 
 ### Shift Toolkit Capabilities (GA)
+
 - GUI-based VM migration across hypervisors (ESXi, Hyper-V, OpenShift, OLVM, Proxmox)
 - ONTAP FlexClone for disk conversion in seconds (1TB VMDK in seconds vs hours)
 - Source VM non-destructive (script copy only, immediate rollback possible)
@@ -23,6 +24,7 @@ The verification focuses not just on "migrating from VMware to AWS" but on confi
 - Free from NetApp
 
 ### EC2 Early Preview (Under Investigation)
+
 - **Confirmed scope**: Data disk placement on FSx for ONTAP
 - **Open question (P0)**: OS disk boot method — whether Shift Toolkit handles AMI conversion or requires VM Import/Export / MGN / CMC for the OS disk
 - **Requires**: NetApp-side enablement

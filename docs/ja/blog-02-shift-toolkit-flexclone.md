@@ -20,7 +20,7 @@ series: "NetApp Shift Toolkit × VMware to EC2 / FSx for ONTAP"
 
 VMware から別のプラットフォームへ VM を移行する場合、従来は以下のプロセスが必要でした:
 
-```
+```text
 従来の移行フロー:
 1. ソース VM を停止（またはスナップショット取得）
 2. VMDK をエクスポート
@@ -46,7 +46,7 @@ Shift Toolkit のアプローチは根本的に異なります。**データを�
 
 ONTAP では、1つのボリューム（NAS のファイルシステム相当）に対して、複数のプロトコルで同時にアクセスできます。
 
-```
+```text
 ONTAP Volume: /vol/vm_data
 ├── NFS アクセス: VMware ESXi が VMDK を格納
 ├── SMB アクセス: Hyper-V が VHDX にアクセス
@@ -59,7 +59,7 @@ ONTAP Volume: /vol/vm_data
 
 FlexClone は ONTAP の核心技術の1つで、ファイルやボリュームの**論理的なコピーを物理データコピーなしで作成**します。
 
-```
+```text
 FlexClone の動作:
                                     
   [オリジナル VMDK]                  [クローン（変換後）]
@@ -147,6 +147,7 @@ Shift Toolkit を使うには以下の条件が必要です:
 | **VM 要件** | NFS データストア上にホストされていること |
 
 **制約:**
+
 - SAN（iSCSI/FC）ベースの ONTAP ストレージ上の VM は、事前に Storage vMotion で NFS データストアに移動が必要
 - Windows 専用ツール（Linux/Mac では動作しない）
 - 同時変換は同一ソース→デスティネーション間で最大10並列を推奨
@@ -171,6 +172,7 @@ Shift Toolkit の**圧倒的な速度の秘密は「データを動かさない�
 Shift Toolkit が GA でサポートするターゲット（Hyper-V, OpenShift, Proxmox, OLVM）に加え、**Early Preview として Amazon EC2 / FSx for ONTAP への移行パスが追加**されています。
 
 想定フロー:
+
 1. Shift Toolkit がデータディスク VMDK を FlexClone で変換
 2. SnapMirror で変換済みデータを FSx for ONTAP に転送
 3. EC2 インスタンスから FSx ONTAP の iSCSI LUN としてマウント

@@ -26,7 +26,7 @@ VMware ワークロードの移行先について、AWS は公式に5つのパ�
 
 ### AWS 公式 VMware パスウェイ全体像
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │              VMware ワークロードの AWS パスウェイ                      │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -55,7 +55,11 @@ VMware ワークロードの移行先について、AWS は公式に5つのパ�
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-> 出典: [AWS for VMware Partner Offerings](https://aws.amazon.com/vmware/partner-offerings/) — "AWS offers the most comprehensive set of migration and modernization options for VMware-based workloads - from relocating to Amazon EVS, to rehosting on Amazon EC2, containerizing with Amazon EKS, or transitioning to running third-party hypervisors in the cloud like ROSA and NC2 on AWS."（内容を要約して記載。ライセンス制約に基づき表現を言い換え。）
+> 出典: [AWS for VMware Partner Offerings](https://aws.amazon.com/vmware/partner-offerings/)
+> — "AWS offers the most comprehensive set of migration and modernization options for
+> VMware-based workloads - from relocating to Amazon EVS, to rehosting on Amazon EC2,
+> containerizing with Amazon EKS, or transitioning to running third-party hypervisors
+> in the cloud like ROSA and NC2 on AWS."（内容を要約して記載。ライセンス制約に基づき表現を言い換え。）
 
 ### 各パスウェイの詳細
 
@@ -64,6 +68,7 @@ VMware ワークロードの移行先について、AWS は公式に5つのパ�
 VMware VM を EC2 インスタンスとして移行する最もストレートなパス。AWS Transform for VMware（Agentic AI ベースの自動移行サービス）が 2025年に GA し、大規模移行の自動化が進んでいます。
 
 **ストレージ構成の選択肢:**
+
 - **EBS のみ**: シンプル。MGN / AWS Transform で自動化
 - **EBS (OS) + FSx for ONTAP (Data)**: ONTAP 機能の継続。Shift Toolkit / CMC で対応 ← **本検証のスコープ**
 
@@ -89,7 +94,9 @@ Amazon Elastic VMware Service を使えば、VPC 内で VMware Cloud Foundation 
 
 #### 4. AWS Outposts（オンプレ AWS + NetApp 外部ストレージ）
 
-AWS Outposts は、AWS インフラをオンプレミスに配置するフルマネージドサービスです。2024年12月に AWS は Outposts でのサードパーティブロックストレージ統合を発表し、**NetApp ONTAP と StorageGRID が AWS Service Ready Program で検証済み**のストレージパートナーとして利用可能になっています。[（参考: AWS Blog）](https://aws.amazon.com/blogs/compute/new-simplifying-the-use-of-third-party-block-storage-with-aws-outposts/) [（参考: NetApp）](https://netapp.com/aws/outposts/)
+AWS Outposts は、AWS インフラをオンプレミスに配置するフルマネージドサービスです。
+2024年12月に AWS は Outposts でのサードパーティブロックストレージ統合を発表し、**NetApp ONTAP と StorageGRID が AWS Service Ready Program で検証済み**のストレージパートナーとして利用可能になっています。
+[（参考: AWS Blog）](https://aws.amazon.com/blogs/compute/new-simplifying-the-use-of-third-party-block-storage-with-aws-outposts/) [（参考: NetApp）](https://netapp.com/aws/outposts/)
 
 EC2 インスタンスのデータボリュームとして NetApp ONTAP の iSCSI LUN を AWS コンソールから直接アタッチでき、さらに 2025年7月にはブートボリュームのサポートも追加されています。[（参考: AWS Blog）](https://aws.amazon.com/blogs/compute/deploying-external-boot-volumes-with-aws-outposts/)
 
@@ -107,7 +114,7 @@ Nutanix CEO Rajiv Ramaswami 氏は「外部ストレージプラットフォー�
 
 **NetApp エコシステムとしての全体像:**
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │          NetApp ONTAP — データの可搬性と一貫性                 │
 ├─────────────────────────────────────────────────────────────┤
@@ -138,7 +145,7 @@ Shift Toolkit による VMware → EC2/FSxN 移行は、このエコシステム
 
 ### 本検証の位置づけ
 
-```
+```text
 VMware ESXi (現在地)
     │
     ├─ Phase 1: リホスト ← 本検証のスコープ
@@ -185,7 +192,7 @@ FSx for ONTAP を単なる「大容量ストレージ」として見ると、EBS
 
 ### FSx for ONTAP の EC2 連携パターン
 
-```
+```text
 ┌──────────────────────────────┐
 │      Amazon EC2 (Nitro)       │
 │  ┌─────────┐  ┌───────────┐  │
@@ -204,6 +211,7 @@ FSx for ONTAP を単なる「大容量ストレージ」として見ると、EBS
 ```
 
 この構成の利点:
+
 - **EC2 の VM レベル I/O 制限を回避**: FSx ONTAP はネットワーク帯域のみが制約。小型インスタンスでも高 IOPS を実現可能
 - **ストレージとコンピュートの独立スケーリング**: EC2 を止めずに FSxN の容量/スループットを変更可能
 - **ONTAP 運用モデルの継続**: オンプレと同じ CLI/API でスナップショット、クローン、レプリケーションを操作
