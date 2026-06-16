@@ -46,6 +46,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 | ONTAP 未使用 or EBS のみで十分 | AWS MGN |
 | ONTAP 使用中 + FSxN にデータ配置 + 中小規模 | **Shift Toolkit** (Early Preview) |
 | ONTAP 使用中 + 大規模 (100+ VM) + ゼロダウンタイム | Cirrus Migrate Cloud (CMC) |
+| AWS ネイティブで一気通貫（計画〜コンピュート〜ストレージ）/ ソース混在 | AWS Transform（VMware 移行は無料・FSxN 宛先は Public Preview） |
 | 移行計画・サイジングのみ | BlueXP Migration Advisor |
 
 ## 検証フェーズ
@@ -187,6 +188,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 | No ONTAP or EBS-only sufficient | AWS MGN |
 | ONTAP in use + FSxN data placement + small/mid-scale | **Shift Toolkit** (Early Preview) |
 | ONTAP in use + large scale (100+ VMs) + near-zero downtime | Cirrus Migrate Cloud (CMC) |
+| AWS-native end-to-end (plan → compute → storage) / mixed sources | AWS Transform (VMware migration free; FSxN destination Public Preview) |
 | Migration planning & sizing only | BlueXP Migration Advisor |
 
 ## Verification Phases
