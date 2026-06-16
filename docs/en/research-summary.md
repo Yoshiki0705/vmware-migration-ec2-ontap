@@ -42,7 +42,7 @@ The verification focuses not just on "migrating from VMware to AWS" but on confi
 
 | Metric | Target |
 |--------|--------|
-| Data disk conversion | < 5 min per 100GB (10x faster than copy-based tools) |
+| Data disk conversion | < 5 min per 100GB (FlexClone minimizes conversion time; copy-based approaches are dominated by transfer time) |
 | Cutover downtime | < 30 min (small VMs) |
 | Data integrity | 100% sha256sum match |
 | FSxN iSCSI performance | Baseline comparison with documented fio parameters |
