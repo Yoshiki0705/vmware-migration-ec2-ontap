@@ -248,12 +248,18 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 │                - 無償、GUI 操作                              │
 │                - ONTAP 運用モデル継続が目的                  │
 │                                                             │
-│  補助ツール:                                                 │
+│  補助ツール / オーケストレーション:                          │
+│  - AWS Transform: discovery〜計画〜コンピュート/NW/ストレージ │
+│    を一気通貫。FSxN 宛先は Public Preview。詳細は 3.2.3 参照  │
 │  - BlueXP Migration Advisor: 計画・サイジング（どのパスでも） │
 │  - VM Import/Export: OS ディスクの AMI 化（必要に応じて）     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> **2026-06 追記**: AWS Transform が FSx for ONTAP を移行先としてサポート（Public Preview）。
+> 上記フローは「移行エンジン」の選択軸。AWS Transform は「オーケストレーション層」であり、
+> 排他選択ではなく上位レイヤーで併用しうる。使い分けは 3.2.3 を参照。
 
 **判断軸の詳細:**
 
@@ -267,6 +273,108 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 | サポート | AWS 標準 | NetApp Community | Cirrus 商用 |
 | ONTAP 運用継続 | 不要 | 必要（主目的） | 必要 |
 | AWS 標準サポート | 必要 | 不要 | 不要 |
+
+### 3.2.3 AWS Transform との使い分け（2026-06 Public Preview）
+
+2026-06-16 付で **AWS Transform for migrations が Amazon FSx for NetApp ONTAP を移行先としてサポート**（Public Preview）した。[（出典）](https://aws.amazon.com/jp/about-aws/whats-new/2026/06/aws-transform-vmware-fsx-for-ontap-preview/) これにより、従来 Amazon EBS のみだったブロックストレージの移行先に FSxN が加わり、コンピュート・ネットワークと同一の移行ウェーブ内でブロックデータを FSxN ボリュームへ直接レプリケートできるようになった。
+
+**本質的な位置づけ**: AWS Transform は「移行ウェーブ全体を回す AWS ネイティブのオーケストレーター」、Shift Toolkit は「ONTAP 上の VM を高速変換する NetApp ネイティブのエンジン」。レイヤーが異なり、排他的に選ぶものではない。Shift Toolkit が単体で解いていない OS ディスクの EC2 ブート化（3.2.1 の P0 課題）を、AWS Transform はコンピュート移行込みで吸収しうる関係にある。
+
+| 観点 | AWS Transform (Public Preview) | Shift Toolkit (本検証対象 / Early Preview) |
+|------|------|------|
+| 提供元 / 性質 | AWS / エージェント型 AI の移行オーケストレーション | NetApp / FlexClone ベースの変換ツール |
+| カバー範囲 | discovery → 計画 → コンピュート + ネットワーク + ストレージを同一ウェーブで | 主にディスク変換（VMDK 変換）。計画・コンピュートは別 |
+| ソース前提 | ソース非依存（オンプレ / 他クラウド / VMware のブロック・NFS データストア） | ソース VM が ONTAP NFS データストア上にあることが必須 |
+| FSxN の位置づけ | ブロックストレージの移行先（EBS に加えて選択可） | データディスクの配置先（iSCSI LUN） |
+| 変換の仕組み | AWS ネイティブのレプリケーション（※推定・要確認） | ONTAP FlexClone（ゼロデータコピー、秒〜分） |
+| NetApp 連携点 | discovery が NetApp DII 取り込みに対応（計画フェーズでの連携） | ツール自体が ONTAP / FlexClone 前提 |
+| OS / ルートディスク | コンピュート移行に含む（EBS ブートを自動処理と推定・要確認） | 単体では未カバーの可能性（P0 課題） |
+| コスト / 提供 | AWS サービス | 無償 |
+| 成熟度 | Public Preview（2026-06-16） | Early Preview |
+
+> **接点の理解**: 現時点で確認できる AWS Transform と Shift Toolkit の接点は、discovery の **NetApp DII 取り込み**（＝計画フェーズの連携）に見える。AWS Transform が移行エンジンとして FlexClone を使うわけではなさそうだが、ここは NetApp への要確認事項（3.2.4 A1/A2）。
+
+#### ルートボリュームの扱い（両ソリューション共通の物理制約）
+
+EC2 は **AMI（EBS バックド）からしかブートできず、FSxN の iSCSI LUN から直接起動はできない**。したがって構成は両方とも次に収束する。
+
+```text
+OS / ルートディスク  → Amazon EBS (gp3)      ← ブート要件（不可避）
+データディスク       → FSx for ONTAP (iSCSI)  ← ONTAP 機能を継続
+```
+
+違いは「ルートディスクを誰が EBS 化するか」:
+
+- **Shift Toolkit**: Early Preview がデータディスクの FSxN 配置中心の場合、OS ディスクの AMI 化は単体ではカバーされない懸念（3.2.1 シナリオ B で VM Import/Export 等の併用を想定）。
+- **AWS Transform**: コンピュート移行を含むため、OS ディスクの EBS ブート化（AMI 化・Nitro ドライバ注入等）をサービス側で吸収すると考えられる（要確認）。もしそうなら、AWS Transform は本検証の P0 課題に対する「もう一つの解」になりうる。
+
+→ ルートボリュームはどちらも **EBS** が基本。Shift Toolkit で別ツール併用が要る部分を、AWS Transform は一気通貫で処理する可能性がある、という整理。
+
+#### 使い分けガイダンス
+
+- **AWS ネイティブの一気通貫・大規模計画・ソースが ONTAP 以外も混在** → AWS Transform。discovery〜コンピュート〜ネットワーク〜ストレージを 1 フローで回せる。NetApp DII があれば計画精度も上がる。
+- **すでにオンプレ ONTAP NFS データストアで運用中・FlexClone の変換速度と ONTAP 運用継続が主目的・中小規模 / PoC** → Shift Toolkit。秒単位の変換とゼロデータコピーが効く。
+- **両取り**: AWS Transform で計画・コンピュート・ネットワークを回し、データの最終ランディングを FSxN にする組み合わせも論理的に成立。ただし「AWS Transform の FSxN 移行が SnapMirror / FlexClone を使うのか、AWS ネイティブコピーなのか」で移行後の ONTAP 運用継続性（Snapshot 系譜の引き継ぎ等）が変わるため、ここが分かれ目。
+
+#### サポートOSの観点 — レガシーOSの壁（2026-06 時点）
+
+VMware → EC2 のリホストで現場が最もつまずくのは新しい OS ではなく、**古い / EOL のゲスト OS** である。AWS Transform のリホスト実体は **AWS Transform MGN（旧 AWS Application Migration Service）** であり、サポート OS には明確なマトリクスがある。
+
+**AWS Transform MGN サポートOS（抜粋）** [（出典）](https://docs.aws.amazon.com/mgn/latest/ug/Supported-Operating-Systems.html)
+
+| 区分 | 現行サポート | 終息 / 非対応（レガシー） |
+|------|------------|------------------------|
+| Windows | Server 2016 / 2019 / 2022 / 2025、Windows 10 / 11（いずれも 64bit） | Server 2003（2026-02-15 終了）、Server 2008・Windows 7（2026-12-30 終了）、Server 2012（EOL 表記） |
+| Linux | RHEL 6.0〜9.7 / 10 / 10.1、CentOS 6.0〜8.0・Stream 9 / 10、Amazon Linux 1 / 2 / 2023 | RHEL/CentOS 5.x（2025-12-30 終了済）、CentOS 6.x（2026-08-28）、RHEL 6.x / CentOS 8.x（2026-12-30）、CentOS 7（2026-11-20）、Amazon Linux 1（2026-11-20） |
+| アーキ | x86_64（64bit） | **32bit Linux は非対応**、カーネル 2.6.18-164 未満は非対応、カーネル 4.9.256 非対応 |
+
+**補助ツール VM Import/Export** [（出典）](https://docs.aws.amazon.com/vm-import/latest/userguide/prerequisites.html)
+
+- 2026-04-01 で **i386（32bit）サポートを終了**（Windows Server 2003/2008、RHEL/CentOS 5・6、各種 Ubuntu 32bit 等）
+- EOL OS は動作検証対象外（強く非推奨）
+
+> **検証者の観点**: 「古い資産ほど個別対応になりがち」が実情。ただし **Shift Toolkit 側にも OS 制約**があり（RHEL 7.2+ / 8 / 9、CentOS 7、Windows Server 2016+ 等。CentOS/RHEL 5.x/6.x は非対応、本レポート 2.3 参照）、「Shift Toolkit ならレガシーを解決できる」という主張はできない。本質的な打ち手は **OS 起動（AMI/EBS、OS サポートマトリクスに依存）とデータ層（FSxN、ONTAP 機能継続）を分離して設計する**こと。レガシー OS で起動変換が困難でも、データを FSxN に寄せておけば「データのモダナイズ」と「OS の延命/再構築」を切り離して判断できる。これが本検証で確かめる仮説の一つ。
+
+> ⚠️ 上記 OS バージョン・EOL 日付は **2026-06 時点**の一次情報。AWS により随時更新されるため、引用時は取得日を明記し、最新ドキュメントで再確認すること。
+
+#### コスト構造（AWS Transform / 2026-06 時点）
+
+AWS Transform の料金は「サービス（エージェント）」と「生成される AWS インフラ」を明確に分けて理解する必要がある。[（出典）](https://aws.amazon.com/transform/pricing/)
+
+| 区分 | 料金 |
+|------|------|
+| Assessment / Windows / Mainframe / **VMware 移行**エージェント | **無料** |
+| Custom transformation エージェント（コード/API/フレームワーク変換） | **有料**: $0.035 / agent-minute（最小1分単位、能動的な計画・解析・変更時間のみ課金。ローカルビルド/アイドルは対象外） |
+| 移行先 AWS インフラ（EC2 / EBS / **FSxN** / データ転送 / NAT・VPC エンドポイント等） | **通常料金で別途課金** |
+
+> **検証者の観点**: VMware → EC2/FSxN 移行では **AWS Transform のサービス利用自体は無料**であり、実コストの中心は移行先インフラ（特に EC2 + EBS ルート + FSxN）。Shift Toolkit も「無償ツール + インフラ実費」という同じ構造で、**両者ともツール費よりインフラ設計（FSxN サイジング・Storage Efficiency）がコストを左右する**。本検証の FinOps 観点（6章 Phase 3d）と整合させ、「サービス無料」を「移行全体が無料」と誤認させない説明が必要。
+
+#### 3.2.4 AWS Transform リリースを受けた NetApp 確認事項（既存 Q1–Q4 に追加）
+
+**A. AWS Transform と Shift Toolkit の関係**
+
+| # | 質問 | 影響度 |
+|---|------|--------|
+| A1 | AWS Transform の FSxN 移行は内部で Shift Toolkit / FlexClone / SnapMirror を使うのか、AWS ネイティブのブロックレプリケーションか? | Critical |
+| A2 | NetApp DII 連携は discovery のみか、移行実行フェーズにも及ぶか? | High |
+| A3 | NetApp として顧客に Shift Toolkit と AWS Transform をどう使い分け案内する想定か（置き換え / 補完 / 並存）? | High |
+
+**B. ルート / OS ディスク（P0 の継続確認）**
+
+| # | 質問 | 影響度 |
+|---|------|--------|
+| B1 | Shift Toolkit Early Preview は OS ディスクの AMI 化まで含むか、データディスクのみか?（既存 Q1 と統合） | Critical |
+| B2 | 含まない場合、AWS Transform でコンピュート（ルート = EBS）、Shift Toolkit でデータ（FSxN）の分担は NetApp 推奨構成として成立するか? | High |
+
+**C. FSxN 移行先としての仕様**
+
+| # | 質問 | 影響度 |
+|---|------|--------|
+| C1 | AWS Transform の FSxN 移行先はブロック（iSCSI LUN）のみか、NFS データストア相当も対象か? | High |
+| C2 | 移行後に Snapshot / SnapMirror / FlexClone / Storage Efficiency はそのまま継続利用できるか（系譜・メタデータの引き継ぎ有無）? | Critical |
+| C3 | 対応リージョン（東京 ap-northeast-1 で Preview 利用可否）と Preview の制約・GA 時期は? | Medium |
+
+> ⚠️ **distinction discipline**: 上表のうち「AWS ネイティブの仕組み」「ルートの EBS 化を自動吸収」はリリースノートからの**推定**であり、一次情報での確認が必要。Public Preview のため GA 仕様・対応リージョン・制約は確定情報として扱わない。
 
 ### 3.3 EC2 + FSxN 構成パターン
 
@@ -376,7 +484,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 
 ---
 
-## 5. 競合ツール比較表
+## 5. 移行ツールの比較と選択ガイド
 
 ### 5.0 顧客の最初の質問（Partner/SI 観点）
 
@@ -394,7 +502,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 **パートナーが顧客に提供できる成果物（本検証から生成）:**
 
 - ツール選択フローチャート（セクション 3.2.2）
-- 競合比較表（セクション 5.1）
+- ツール比較表（セクション 5.1）
 - コスト比較レポート（Phase 3d の結果）
 - PoC 実行計画テンプレート（Phase 1-3 を簡略化したもの）
 
@@ -406,16 +514,17 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 | **BlueXP Workload Factory Migration Advisor** | NetApp/AWS | 計画 + 最適化 + 自動デプロイ | ✅ (計画・ストレージ最適化) | EBS gp3 | FSx ONTAP iSCSI | RVTools/PowerCLI 連携、コスト比較、IaC 出力 | 移行計画・サイジング |
 | **VMware HCX** | VMware/Broadcom | ライブマイグレーション | ❌ (VMC on AWS 専用) | VMFS/vSAN | VMFS/vSAN | VMC 専用、vMotion ベース、ライブ移行 | VMC on AWS への移行 |
 | **AWS VM Import/Export** | AWS | VMDK/VHD/OVA → AMI 変換 | ❌ | EBS | EBS | AWS 標準、バッチ処理向き | 小規模・手動移行 |
+| **AWS Transform** | AWS | エージェント型 AI オーケストレーション（discovery→計画→移行） | ✅ (ブロック宛先・Public Preview) | EBS | FSx ONTAP / EBS | 移行ウェーブ一括（compute+NW+storage）。VMware移行は無料、discovery が NetApp DII 対応 | AWS ネイティブ一気通貫・大規模計画・ソース混在 |
 
-### 5.1 Shift Toolkit の独自ポジション
+### 5.1 Shift Toolkit の特徴と適した場面
 
-1. **データコピー不要（Zero Data Copy）**: FlexClone により物理データの移動なしでディスク変換。他ツールはすべてデータコピー/レプリケーションが必要
-2. **変換速度**: 1TB あたり数秒〜数分 vs 他ツールの数時間〜数日
-3. **無償提供**: NetApp から無料で提供。CMC は有償（AWS Marketplace）、MGN は無償だが FSxN 非対応
+1. **データコピー不要（Zero Data Copy）**: FlexClone により物理データの移動なしでディスク変換。データコピー/レプリケーションを伴うアプローチに比べ、転送量と所要時間を抑えられる
+2. **変換速度**: 1TB あたり数秒〜数分（データコピー方式では同規模で数時間〜数日を要する場合がある）
+3. **提供形態**: NetApp から無償で提供。提供形態（有償/無償）や FSxN 対応の有無は選択肢ごとに異なる（セクション 5.0 の表を参照）
 4. **ONTAP エコシステム統合**: 既存の ONTAP ストレージ上の VM をそのまま活用。追加のストレージリソース不要
 5. **ソース VM 非破壊**: ソース VM にはスクリプトコピーのみ。失敗時のロールバックが即座に可能
 
-**制約（差別化の裏返し）:**
+**適用上の前提・制約（特性の裏返し）:**
 
 - ONTAP NFS データストアが前提（非 ONTAP 環境では使えない）
 - Windows 専用ツール
@@ -431,7 +540,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 
 | # | 成功指標 | 目標値 | 測定方法 | 対応ブログ記事 |
 |---|---------|--------|---------|-------------|
-| S1 | データディスク変換時間 | FlexClone 活用で 100GB あたり 5分以内（CMC/MGN のデータコピー方式と比較して 10倍以上高速であることを確認） | Shift Toolkit ジョブログのタイムスタンプ | #2, #4, #5 |
+| S1 | データディスク変換時間 | FlexClone 活用で 100GB あたり 5分以内（データコピーを伴う方式は転送時間が支配的になるのに対し、FlexClone は変換時間を最小化できることを実測で確認） | Shift Toolkit ジョブログのタイムスタンプ | #2, #4, #5 |
 | S2 | カットオーバー停止時間 | 全体プロセスの停止時間を実測し記録。目標: 30分以内（小規模 VM） | VM 停止〜EC2 起動完了の時刻差分 | #4, #5 |
 | S3 | データ整合性 | 100% 一致（ゼロ差分） | 移行前後の sha256sum 全ファイル比較 | #4, #5 |
 | S4 | FSxN iSCSI パフォーマンス | ベースラインとの比較レポート作成。同一 FSxN 構成内で ±10% の再現性 | fio (4K random R/W, 64K sequential R/W) — パラメータ詳細は Phase 3c 参照 | #6 |

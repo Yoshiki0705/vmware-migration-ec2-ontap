@@ -249,7 +249,7 @@ Shift Toolkit は、ONTAP ユーザーが既存の NFS データストア上の 
 
 - VMware からの移行は「どこへ行くか」だけでなく「ストレージ運用モデルをどう継続するか」が重要
 - ONTAP ユーザーにとって、FSx for ONTAP は AWS 上で ONTAP の価値を継続する選択肢
-- ツールは環境と規模で選ぶ。ONTAP + 中小規模なら Shift Toolkit が最速
+- ツールは環境と規模で選ぶ。ONTAP + 中小規模なら Shift Toolkit が有力な選択肢
 - Early Preview 段階のため、検証結果は GA で変わる可能性あり
 
 次回は Shift Toolkit そのものの仕組み — FlexClone が VM 移行をどう変えるか — を掘り下げます。
