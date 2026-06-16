@@ -48,6 +48,17 @@ EC2 は AMI（EBS バックド）からのみブート可能で、FSxN iSCSI LUN
 | Q13 | 同時変換の並列数（最大 10 推奨）は EC2 移行パスでも同じか? | Low |
 | Q14 | Early Preview / Public Preview 検証結果の公開可能範囲（NDA 対象の有無）は? | Medium |
 
+## 5. DR（災害対策）シナリオ
+
+| # | 質問 | 優先度 |
+|---|------|--------|
+| Q15 | VMware×ONTAP → EC2×FSxN の DR は SnapMirror（継続レプリ）＋ EC2 復旧が推奨構成か? 他の推奨パターンはあるか? | High |
+| Q16 | AWS Transform は DR 用途（継続レプリケーション）に使えるか、それとも移行専用か?（弊チーム理解では移行専用） | High |
+| Q17 | FSxN destination を break→RW 化して EC2 から iSCSI アタッチする復旧フローの推奨手順・注意点は? | High |
+| Q18 | フェイルバック（DR→オンプレ resync）の推奨手順と停止ウィンドウの目安は? | Medium |
+| Q19 | 本番レプリを断たずに DR テストする手法は FlexClone が推奨か? 他の方法は? | Medium |
+| Q20 | クロスリージョン DR（FSxN→別リージョン FSxN）の構成・制約は? | Low |
+
 ---
 
 ## 確認方法のメモ
