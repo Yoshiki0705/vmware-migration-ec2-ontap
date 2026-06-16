@@ -13,7 +13,8 @@
 | ビジネススポンサー | ________________ |
 | 技術リード（顧客側） | ________________ |
 | 技術リード（パートナー側） | ________________ |
-| 使用ツール | □ Shift Toolkit (Early Preview) □ CMC □ MGN |
+| 使用ツール | □ Shift Toolkit (Early Preview) □ AWS Transform (Public Preview) □ CMC □ MGN |
+| 検証シナリオ | □ 移行 (Migration) □ DR (継続レプリケーション＋復旧) |
 
 ### 顧客の最初の質問
 
@@ -45,9 +46,16 @@
 
 ## 3. 前提条件チェックリスト
 
-### ツール選択判断
+### ツール・シナリオ選択判断
 
 ```text
+■ シナリオの選択
+  移行 (一度きりのリホスト/リプラットフォーム) → ツール選択フローへ
+  DR (継続レプリケーション＋復旧)            → SnapMirror ベース構成
+       ※ AWS Transform は移行専用。DR のデータ複製は SnapMirror が担う
+       ※ 手順: docs/ja/dr-snapmirror-runbook.md
+
+■ 移行ツール選択フロー
 Q1: 現在 ONTAP NFS データストアを使用しているか?
     Yes → Q2 へ
     No  → AWS MGN を推奨（本テンプレートのスコープ外）
@@ -56,9 +64,14 @@ Q2: データディスクを FSx for ONTAP (iSCSI) に配置したいか?
     Yes → Q3 へ
     No  → AWS MGN を推奨
 
-Q3: 移行規模は?
-    100+ VM → Cirrus Migrate Cloud (CMC) を推奨
-    中小規模 / PoC → Shift Toolkit (Early Preview) ← 本テンプレート対象
+Q3: 移行の進め方は?
+    AWS ネイティブで一気通貫（計画〜コンピュート〜ストレージ）/ ソース混在
+        → AWS Transform（VMware 移行は無料・FSxN 宛先は Public Preview）
+          手順: docs/ja/aws-transform-migration-procedure.md
+    ONTAP FlexClone での高速変換・中小規模 / PoC
+        → Shift Toolkit (Early Preview) ← 本テンプレート主対象
+    100+ VM / ゼロダウンタイム要件
+        → Cirrus Migrate Cloud (CMC)
 ```
 
 ### オンプレミス要件
