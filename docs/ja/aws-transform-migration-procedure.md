@@ -16,12 +16,24 @@
 
 ## 1. 前提条件
 
-- AWS アカウント（対象リージョンで AWS Transform / FSxN が利用可能なこと）
-- AWS Transform への利用権限。アクセス方式は次のいずれか:
+公式ブログ（[Accelerating VMware migration](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migration-aws-transforms-new-experience/)）に基づき整理:
+
+- **AWS Organizations** がセットアップ済み
+- **AWS IAM Identity Center** がセットアップ済み（Transform へのユーザー割り当てに使用）
+- AWS アカウント構成:
+  - **移行計画アカウント**: AWS Transform を稼働させるアカウント（コントロール）
+  - **ターゲットアカウント**: 移行先の EC2 / FSxN を配置するアカウント
+  - 両方同一 Organization 内。小規模なら1アカウントに統合も可
+- AWS Transform の利用権限。アクセス方式:
   - **Web API 認証（SSO / IAM Identity Center もしくは Cookie）**
   - **SigV4（AWS 認証情報）**: アカウントが Transform API に対応している場合
-- discovery 用インベントリ: RVTools / NetApp DII / Migration Evaluator / MPA エクスポートのいずれか
-- 移行先 FSxN ファイルシステム（Multi-AZ 推奨）と SVM（未作成なら計画に含める）
+- discovery 用インベントリ（以下のいずれか）:
+  - **AWS Transform Discovery Collector OVA**（オンプレ vCenter にデプロイ。AWS 接続不要で情報収集、SQL Server検出にも対応）
+  - **RVTools** エクスポート（CSV/XLSX）
+  - **NetApp DII**
+  - **Migration Evaluator / MPA**
+  - **PowerCLI ベースコレクタ**（[aws-samples/sample-vmware-collector-v2](https://github.com/aws-samples/sample-vmware-collector-v2)。MPA/ME/RVTools形式で出力。性能データ最大365日を P95 で収集可能）
+- 移行先 FSxN ファイルシステム（Multi-AZ 推奨）と SVM
 - オンプレ ↔ AWS のネットワーク（VPN/DX）
 
 ---
@@ -53,13 +65,16 @@
 
 ## 3. 移行ステップ（ウェーブ）
 
-1. **Discovery**: RVTools / NetApp DII 等を取り込み、VM・依存関係・ネットワークを把握
-2. **Assessment（任意）**: `migration-assessment-agent-v2`（FSxN を含むストレージ推奨・ビジネスケース生成）
-3. **計画（ウェーブ）**: 移行単位を分割。各 VM のターゲット（EC2 インスタンスタイプ、ネットワーク、ストレージ宛先）を決定
-4. **ストレージ宛先 = FSxN を選択**: ブロックデータを FSxN ボリュームへ。OS/ルートは EBS
-5. **実行（リホスト）**: コンピュート＋ネットワーク＋ストレージを同一ウェーブで移行
-6. **カットオーバー**: 最終同期 → 切替。停止時間を実測
-7. **検証**: EC2 起動、データ整合性、iSCSI/FSxN アクセス、ネットワーク
+公式ブログ（[Accelerating VMware migration](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migration-aws-transforms-new-experience/)）と [UserGuide](https://docs.aws.amazon.com/transform/latest/userguide/transform-vmware-migrate-servers.html) に基づくフロー:
+
+1. **Discovery**: RVTools / NetApp DII / Discovery Collector OVA / PowerCLI コレクタ等を取り込み、VM・依存関係・ネットワークを把握。AI がパターン検出、重複排除、データ品質向上を自動実行
+2. **Assessment（任意）**: `migration-assessment-agent-v2`（FSxN を含むストレージ推奨・TCO/ビジネスケース生成）
+3. **計画（ウェーブ）**: 依存関係ベースで移行ウェーブを自動提案。各 VM のターゲット（EC2 インスタンスタイプ、ネットワーク、ストレージ宛先）を決定。手動での修正・再計画も可能
+4. **ネットワーク変換**: VMware vSwitch/ポートグループ/VLAN → AWS Security Group / VPC / サブネットへの変換を自動生成。Cisco ACI / Palo Alto / Fortinet にも対応（2025-12〜）
+5. **ストレージ宛先 = FSxN を選択**: ブロックデータを FSxN ボリュームへ配置。OS/ルートは EBS
+6. **レプリケーション**: MGN レプリケーションエージェントをソース VM にデプロイ（自動化可能。[MGN agent automation blog](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migrations-with-aws-transform-and-mgn-replication-agent-installation-automation/) 参照）。データを継続的に同期
+7. **テスト**: テストインスタンスを起動し、動作確認
+8. **カットオーバー**: 最終同期 → 切替。停止時間を実測。Deployment approvals による HITL 承認あり
 
 ---
 
@@ -89,3 +104,17 @@
 ---
 
 *本手順は Public Preview（2026-06 時点）に基づく検証用ドラフト。実機確認後に確定情報へ更新する。*
+
+---
+
+## 参考リンク
+
+- [AWS Transform VMware — Migrate servers (UserGuide)](https://docs.aws.amazon.com/transform/latest/userguide/transform-vmware-migrate-servers.html)
+- [Accelerating VMware migration: AWS Transform's new experience](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migration-aws-transforms-new-experience/) — E2E ウォークスルー
+- [Accelerating VMware Cloud Migration with PowerCLI](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-cloud-migration-with-aws-transform-and-powercli/) — PowerCLI コレクタ
+- [MGN replication agent installation automation](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migrations-with-aws-transform-and-mgn-replication-agent-installation-automation/) — 大規模エージェントデプロイ
+- [Network Migration APIs](https://aws.amazon.com/blogs/migration-and-modernization/automate-large-scale-network-migration-using-aws-transform-network-migration-apis/) — NW 変換 API
+- [Guidance for Automated Setup of AWS Transform for VMware](https://aws.amazon.com/solutions/guidance/automated-setup-of-aws-transform-for-vmware/) — テスト環境自動構築
+- [AWS Transform pricing](https://aws.amazon.com/transform/pricing/)
+- [Migrate VMware to Amazon EC2 & iSCSI-based FSx for ONTAP (NetApp Blog)](https://www.netapp.com/blog/aws-fsxn-blg-migrate-vmware-to-amazon-ec2-iscsi-based-fsx-for-ontap/)
+- [aws-samples/sample-vmware-collector-v2](https://github.com/aws-samples/sample-vmware-collector-v2) — PowerCLI インベントリ収集ツール

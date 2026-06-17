@@ -821,6 +821,25 @@ AWS、NetApp、VMware の観点をつなげると、このプレビューは「V
 - [Amazon FSx for ONTAP User Guide](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/how-it-works-fsx-ontap.html)
 - [AWS VMware Migration Accelerator](https://aws.amazon.com/vmware/migrationaccelerator/)
 
+### AWS Transform 関連ブログ・ドキュメント（2025-12〜2026-06）
+
+- [Accelerating VMware migration: AWS Transform's new experience](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migration-aws-transforms-new-experience/) (2025-12) — E2E ウォークスルー: discovery→計画→ネットワーク変換→サーバー移行。前提条件（Organizations / IdC）、ジョブ作成手順、Discovery Collector OVA の解説
+- [New Capabilities in AWS Transform for VMware](https://aws.amazon.com/jp/blogs/migration-and-modernization/new-capabilities-in-aws-transform-for-vmware/) (2025-05) — ネットワーク変換（VMware→AWS Security Group）と依存関係ベースのウェーブ計画
+- [Accelerating VMware Cloud Migration with AWS Transform and PowerCLI](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-cloud-migration-with-aws-transform-and-powercli/) (2026-01) — PowerCLI ベースの VMware インベントリ収集（RVTools / MPA / ME 形式出力）。aws-samples リポジトリで公開
+- [Accelerating VMware migrations with MGN replication agent installation automation](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migrations-with-aws-transform-and-mgn-replication-agent-installation-automation/) (2026-06) — 大規模環境での MGN エージェント自動デプロイ
+- [Accelerate VMware migration planning using AWS Transform discovery tool](https://www.repost.aws/articles/ARWBQEyEEgQ-i9bNsSjlLJZQ/) (re:Post, 2025-12) — discovery ツールのデプロイと RVTools 連携
+- [Simplify server migration to AWS with AWS Transform for VMware](https://aws.amazon.com/blogs/migration-and-modernization/simplify-server-migration-to-aws-with-aws-transform-for-vmware/) (2025-06) — サーバー移行フローの概要
+- [Automate large scale network migration using AWS Transform Network Migration APIs](https://aws.amazon.com/blogs/migration-and-modernization/automate-large-scale-network-migration-using-aws-transform-network-migration-apis/) (2025-12) — NW 変換 API による大規模ネットワーク移行自動化
+- [Guidance for Automated Setup of AWS Transform for VMware](https://aws.amazon.com/solutions/guidance/automated-setup-of-aws-transform-for-vmware/) (AWS Solutions) — テスト環境を自動構築するガイダンス
+- [How AWS Is Using Agentic AI To Reinvent Infrastructure Modernization](https://aws.amazon.com/blogs/migration-and-modernization/how-aws-is-using-agentic-ai-to-reinvent-infrastructure-modernization/) (2026-06) — エージェント型 AI ベースのモダナイゼーション概説
+- [AWS Transform VMware — Migrate servers (UserGuide)](https://docs.aws.amazon.com/transform/latest/userguide/transform-vmware-migrate-servers.html) — ウェーブ設定、レプリケーション、テスト、カットオーバーの公式手順
+
+> **注意**: FSxN をストレージ宛先にする検証ブログは 2026-06-18 時点で未公開（発表が 6/16 のため）。本検証が、FSxN 宛先を含む実践的な検証記事の一つになりうる。
+
+### NetApp 公式ブログ
+
+- [Migrate VMware to Amazon EC2 & iSCSI-based FSx for ONTAP](https://www.netapp.com/blog/aws-fsxn-blg-migrate-vmware-to-amazon-ec2-iscsi-based-fsx-for-ontap/) (2026-06) — EC2 + FSxN iSCSI 構成への移行。AWS Transform の FSxN 連携にも言及
+
 ### その他
 
 - [VMware on AWS — Modernization with Amazon EVS & FSx for ONTAP](https://www.netapp.com/aws/fsx-ontap/vmware-cloud/)
