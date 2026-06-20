@@ -26,7 +26,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 
         ┌─── Shift Toolkit ────────────────────┐
         │  1. FlexClone でデータディスク変換     │
-        │  2. SnapMirror で FSxN へ転送          │
+        │  2. SnapMirror で FSx for ONTAP へ転送          │
         │  3. EC2 起動 + iSCSI アタッチ          │
         └──────────────────────────────────────┘
 ```
@@ -35,7 +35,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 
 | 観点 | 価値 |
 |------|------|
-| **AWS ユーザー** | VMware → EC2 への新しい移行パス。FSxN の thin provisioning / dedup / compression でコスト最適化 |
+| **AWS ユーザー** | VMware → EC2 への新しい移行パス。FSx for ONTAP の thin provisioning / dedup / compression でコスト最適化 |
 | **NetApp ユーザー** | ONTAP 運用モデル（Snapshot, FlexClone, SnapMirror, Storage Efficiency）を AWS でも継続 |
 | **VMware ユーザー** | 移行先選択肢の拡大。段階的移行が可能でソース VM は非破壊 |
 
@@ -44,17 +44,17 @@ VMware ESXi                        Amazon EC2 (Nitro)
 | 条件 | 推奨ツール |
 |------|----------|
 | ONTAP 未使用 or EBS のみで十分 | AWS MGN |
-| ONTAP 使用中 + FSxN にデータ配置 + 中小規模 | **Shift Toolkit** (Early Preview) |
+| ONTAP 使用中 + FSx for ONTAP にデータ配置 + 中小規模 | **Shift Toolkit** (Early Preview) |
 | ONTAP 使用中 + 大規模 (100+ VM) + ゼロダウンタイム | Cirrus Migrate Cloud (CMC) |
-| AWS ネイティブで一気通貫（計画〜コンピュート〜ストレージ）/ ソース混在 | AWS Transform（VMware 移行は無料・FSxN 宛先は Public Preview） |
-| 移行計画・サイジングのみ | BlueXP Migration Advisor |
+| AWS ネイティブで一気通貫（計画〜コンピュート〜ストレージ）/ ソース混在 | AWS Transform（VMware 移行は無料・FSx for ONTAP 宛先は Public Preview） |
+| 移行計画・サイジングのみ | BlueXP Migration Advisor | <!-- allow:naming -->
 
 ## 検証フェーズ
 
 | Phase | 内容 | 状態 |
 |-------|------|------|
 | Phase 0 | 調査・計画策定 | ✅ 完了 |
-| Phase 1 | AWS 環境準備（VPC, FSxN, EC2） | 📋 計画済 |
+| Phase 1 | AWS 環境準備（VPC, FSx for ONTAP, EC2） | 📋 計画済 |
 | Phase 2 | 移行テスト実行 | ⏳ NetApp Q&A 待ち |
 | Phase 3 | 検証・ベンチマーク | ⏳ 未着手 |
 | Phase 4 | ドキュメント・記事化 | ⏳ 未着手 |
@@ -66,8 +66,8 @@ VMware ESXi                        Amazon EC2 (Nitro)
 | データディスク変換時間 | 100GB あたり 5分以内（FlexClone） |
 | カットオーバー停止 | 30分以内（小規模 VM） |
 | データ整合性 | 100%（sha256sum 一致） |
-| FSxN iSCSI パフォーマンス | ベースライン比較レポート作成 |
-| コスト比較 | EBS のみ vs EBS + FSxN のハイブリッド構成 |
+| FSx for ONTAP iSCSI パフォーマンス | ベースライン比較レポート作成 |
+| コスト比較 | EBS のみ vs EBS + FSx for ONTAP のハイブリッド構成 |
 
 ## ディレクトリ構成
 
@@ -168,7 +168,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 
         ┌─── Shift Toolkit ────────────────────┐
         │  1. FlexClone data disk conversion    │
-        │  2. SnapMirror transfer to FSxN       │
+        │  2. SnapMirror transfer to FSx for ONTAP       │
         │  3. EC2 launch + iSCSI attach         │
         └──────────────────────────────────────┘
 ```
@@ -177,7 +177,7 @@ VMware ESXi                        Amazon EC2 (Nitro)
 
 | Perspective | Value |
 |-------------|-------|
-| **AWS Users** | New VMware → EC2 migration path. FSxN thin provisioning / dedup / compression for cost optimization |
+| **AWS Users** | New VMware → EC2 migration path. FSx for ONTAP thin provisioning / dedup / compression for cost optimization |
 | **NetApp Users** | Continue ONTAP operational model (Snapshot, FlexClone, SnapMirror, Storage Efficiency) on AWS |
 | **VMware Users** | Expanded migration destinations. Phased migration possible with non-destructive source VMs |
 
@@ -186,17 +186,17 @@ VMware ESXi                        Amazon EC2 (Nitro)
 | Condition | Recommended Tool |
 |-----------|-----------------|
 | No ONTAP or EBS-only sufficient | AWS MGN |
-| ONTAP in use + FSxN data placement + small/mid-scale | **Shift Toolkit** (Early Preview) |
+| ONTAP in use + FSx for ONTAP data placement + small/mid-scale | **Shift Toolkit** (Early Preview) |
 | ONTAP in use + large scale (100+ VMs) + near-zero downtime | Cirrus Migrate Cloud (CMC) |
-| AWS-native end-to-end (plan → compute → storage) / mixed sources | AWS Transform (VMware migration free; FSxN destination Public Preview) |
-| Migration planning & sizing only | BlueXP Migration Advisor |
+| AWS-native end-to-end (plan → compute → storage) / mixed sources | AWS Transform (VMware migration free; FSx for ONTAP destination Public Preview) |
+| Migration planning & sizing only | BlueXP Migration Advisor | <!-- allow:naming -->
 
 ## Verification Phases
 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | Phase 0 | Research & planning | ✅ Complete |
-| Phase 1 | AWS environment setup (VPC, FSxN, EC2) | 📋 Planned |
+| Phase 1 | AWS environment setup (VPC, FSx for ONTAP, EC2) | 📋 Planned |
 | Phase 2 | Migration test execution | ⏳ Awaiting NetApp Q&A |
 | Phase 3 | Validation & benchmarking | ⏳ Not started |
 | Phase 4 | Documentation & articles | ⏳ Not started |
@@ -208,8 +208,8 @@ VMware ESXi                        Amazon EC2 (Nitro)
 | Data disk conversion time | Under 5 min per 100GB (FlexClone) |
 | Cutover downtime | Under 30 min (small VMs) |
 | Data integrity | 100% (sha256sum match) |
-| FSxN iSCSI performance | Baseline comparison report |
-| Cost comparison | EBS-only vs EBS + FSxN hybrid |
+| FSx for ONTAP iSCSI performance | Baseline comparison report |
+| Cost comparison | EBS-only vs EBS + FSx for ONTAP hybrid |
 
 ## Directory Structure
 

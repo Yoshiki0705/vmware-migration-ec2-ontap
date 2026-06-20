@@ -143,7 +143,7 @@ Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーに�
 
 ---
 
-## 3. VMware → EC2/FSxN 移行アーキテクチャ
+## 3. VMware → EC2/FSx for ONTAP 移行アーキテクチャ
 
 ### 3.1 現在文書化されている移行方式（Cirrus Migrate Cloud）
 
@@ -162,7 +162,7 @@ NetApp 公式ドキュメントの「Migrate VMs to Amazon EC2」セクション
 - エージェントベースのブロックレベルレプリケーション
 - ソース VM 稼働中にバックグラウンドで OS ディスクを bit-by-bit で移行
 - 最終同期 + カットオーバーで短時間の停止のみ
-- FSx ONTAP の iSCSI LUN を自動プロビジョニング
+- FSx for ONTAP の iSCSI LUN を自動プロビジョニング
 - マルチパス/MPIO 設定を自動修正
 - スナップショットによるロールバック保護
 
@@ -187,7 +187,7 @@ NetApp 公式ドキュメントの「Migrate VMs to Amazon EC2」セクション
 
 ### 3.2.1 ⚠️ 未解決課題: OS ディスクのブート方式（P0）
 
-EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要があり、VMDK を直接マウントして起動することはできない。Early Preview がデータディスクの FSx ONTAP 配置のみを対象とする場合、**OS ディスクの EC2 ブート方式は Shift Toolkit 単体ではカバーされない可能性がある**。
+EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要があり、VMDK を直接マウントして起動することはできない。Early Preview がデータディスクの FSx for ONTAP 配置のみを対象とする場合、**OS ディスクの EC2 ブート方式は Shift Toolkit 単体ではカバーされない可能性がある**。
 
 **NetApp に確認すべき事項:**
 
@@ -233,7 +233,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 │  ├─ No → AWS MGN（標準、無償、幅広い OS 対応）              │
 │  │                                                         │
 │  └─ Yes                                                    │
-│       Q: データディスクを FSx ONTAP に配置したいか?          │
+│       Q: データディスクを FSx for ONTAP に配置したいか?          │
 │       ├─ No → AWS MGN（EBS のみ構成）                      │
 │       │                                                     │
 │       └─ Yes                                                │
@@ -250,8 +250,8 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 │                                                             │
 │  補助ツール / オーケストレーション:                          │
 │  - AWS Transform: discovery〜計画〜コンピュート/NW/ストレージ │
-│    を一気通貫。FSxN 宛先は Public Preview。詳細は 3.2.3 参照  │
-│  - BlueXP Migration Advisor: 計画・サイジング（どのパスでも） │
+│    を一気通貫。FSx for ONTAP 宛先は Public Preview。詳細は 3.2.3 参照  │
+│  - BlueXP Migration Advisor: 計画・サイジング（どのパスでも） │ <!-- allow:naming -->
 │  - VM Import/Export: OS ディスクの AMI 化（必要に応じて）     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -266,7 +266,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 | 判断軸 | MGN を選ぶ場合 | Shift Toolkit を選ぶ場合 | CMC を選ぶ場合 |
 |--------|--------------|------------------------|---------------|
 | ストレージ前提 | ONTAP 不使用 or EBS のみで十分 | ONTAP NFS データストア使用中 | ONTAP 使用中 + 大規模 |
-| FSxN 利用意向 | なし | データディスクを FSxN に配置 | データ + 一部 OS も FSxN |
+| FSx for ONTAP 利用意向 | なし | データディスクを FSx for ONTAP に配置 | データ + 一部 OS も FSx for ONTAP |
 | 移行規模 | 任意 | 中小規模 / PoC | 100+ VM |
 | ダウンタイム許容 | 短い停止可 | 計画停止可（FlexClone は秒） | ゼロダウンタイムに近い |
 | コスト | 無償 | 無償 | 有償（Marketplace） |
@@ -276,7 +276,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 
 ### 3.2.3 AWS Transform との使い分け（2026-06 Public Preview）
 
-2026-06-16 付で **AWS Transform for migrations が Amazon FSx for NetApp ONTAP を移行先としてサポート**（Public Preview）した。[（出典）](https://aws.amazon.com/jp/about-aws/whats-new/2026/06/aws-transform-vmware-fsx-for-ontap-preview/) これにより、従来 Amazon EBS のみだったブロックストレージの移行先に FSxN が加わり、コンピュート・ネットワークと同一の移行ウェーブ内でブロックデータを FSxN ボリュームへ直接レプリケートできるようになった。
+2026-06-16 付で **AWS Transform for migrations が Amazon FSx for NetApp ONTAP を移行先としてサポート**（Public Preview）した。[（出典）](https://aws.amazon.com/jp/about-aws/whats-new/2026/06/aws-transform-vmware-fsx-for-ontap-preview/) これにより、従来 Amazon EBS のみだったブロックストレージの移行先に FSx for ONTAP が加わり、コンピュート・ネットワークと同一の移行ウェーブ内でブロックデータを FSx for ONTAP ボリュームへ直接レプリケートできるようになった。
 
 **本質的な位置づけ**: AWS Transform は「移行ウェーブ全体を回す AWS ネイティブのオーケストレーター」、Shift Toolkit は「ONTAP 上の VM を高速変換する NetApp ネイティブのエンジン」。レイヤーが異なり、排他的に選ぶものではない。Shift Toolkit が単体で解いていない OS ディスクの EC2 ブート化（3.2.1 の P0 課題）を、AWS Transform はコンピュート移行込みで吸収しうる関係にある。
 
@@ -285,7 +285,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 | 提供元 / 性質 | AWS / エージェント型 AI の移行オーケストレーション | NetApp / FlexClone ベースの変換ツール |
 | カバー範囲 | discovery → 計画 → コンピュート + ネットワーク + ストレージを同一ウェーブで | 主にディスク変換（VMDK 変換）。計画・コンピュートは別 |
 | ソース前提 | ソース非依存（オンプレ / 他クラウド / VMware のブロック・NFS データストア） | ソース VM が ONTAP NFS データストア上にあることが必須 |
-| FSxN の位置づけ | ブロックストレージの移行先（EBS に加えて選択可） | データディスクの配置先（iSCSI LUN） |
+| FSx for ONTAP の位置づけ | ブロックストレージの移行先（EBS に加えて選択可） | データディスクの配置先（iSCSI LUN） |
 | 変換の仕組み | AWS ネイティブのレプリケーション（※推定・要確認） | ONTAP FlexClone（ゼロデータコピー、秒〜分） |
 | NetApp 連携点 | discovery が NetApp DII 取り込みに対応（計画フェーズでの連携） | ツール自体が ONTAP / FlexClone 前提 |
 | OS / ルートディスク | コンピュート移行に含む（EBS ブートを自動処理と推定・要確認） | 単体では未カバーの可能性（P0 課題） |
@@ -296,7 +296,7 @@ EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要
 
 #### ルートボリュームの扱い（両ソリューション共通の物理制約）
 
-EC2 は **AMI（EBS バックド）からしかブートできず、FSxN の iSCSI LUN から直接起動はできない**。したがって構成は両方とも次に収束する。
+EC2 は **AMI（EBS バックド）からしかブートできず、FSx for ONTAP の iSCSI LUN から直接起動はできない**。したがって構成は両方とも次に収束する。
 
 ```text
 OS / ルートディスク  → Amazon EBS (gp3)      ← ブート要件（不可避）
@@ -305,7 +305,7 @@ OS / ルートディスク  → Amazon EBS (gp3)      ← ブート要件（不�
 
 違いは「ルートディスクを誰が EBS 化するか」:
 
-- **Shift Toolkit**: Early Preview がデータディスクの FSxN 配置中心の場合、OS ディスクの AMI 化は単体ではカバーされない懸念（3.2.1 シナリオ B で VM Import/Export 等の併用を想定）。
+- **Shift Toolkit**: Early Preview がデータディスクの FSx for ONTAP 配置中心の場合、OS ディスクの AMI 化は単体ではカバーされない懸念（3.2.1 シナリオ B で VM Import/Export 等の併用を想定）。
 - **AWS Transform**: コンピュート移行を含むため、OS ディスクの EBS ブート化（AMI 化・Nitro ドライバ注入等）をサービス側で吸収すると考えられる（要確認）。もしそうなら、AWS Transform は本検証の P0 課題に対する「もう一つの解」になりうる。
 
 → ルートボリュームはどちらも **EBS** が基本。Shift Toolkit で別ツール併用が要る部分を、AWS Transform は一気通貫で処理する可能性がある、という整理。
@@ -314,7 +314,7 @@ OS / ルートディスク  → Amazon EBS (gp3)      ← ブート要件（不�
 
 - **AWS ネイティブの一気通貫・大規模計画・ソースが ONTAP 以外も混在** → AWS Transform。discovery〜コンピュート〜ネットワーク〜ストレージを 1 フローで回せる。NetApp DII があれば計画精度も上がる。
 - **すでにオンプレ ONTAP NFS データストアで運用中・FlexClone の変換速度と ONTAP 運用継続が主目的・中小規模 / PoC** → Shift Toolkit。秒単位の変換とゼロデータコピーが効く。
-- **両取り**: AWS Transform で計画・コンピュート・ネットワークを回し、データの最終ランディングを FSxN にする組み合わせも論理的に成立。ただし「AWS Transform の FSxN 移行が SnapMirror / FlexClone を使うのか、AWS ネイティブコピーなのか」で移行後の ONTAP 運用継続性（Snapshot 系譜の引き継ぎ等）が変わるため、ここが分かれ目。
+- **両取り**: AWS Transform で計画・コンピュート・ネットワークを回し、データの最終ランディングを FSx for ONTAP にする組み合わせも論理的に成立。ただし「AWS Transform の FSx for ONTAP 移行が SnapMirror / FlexClone を使うのか、AWS ネイティブコピーなのか」で移行後の ONTAP 運用継続性（Snapshot 系譜の引き継ぎ等）が変わるため、ここが分かれ目。
 
 #### サポートOSの観点 — レガシーOSの壁（2026-06 時点）
 
@@ -333,7 +333,7 @@ VMware → EC2 のリホストで現場が最もつまずくのは新しい OS �
 - 2026-04-01 で **i386（32bit）サポートを終了**（Windows Server 2003/2008、RHEL/CentOS 5・6、各種 Ubuntu 32bit 等）
 - EOL OS は動作検証対象外（強く非推奨）
 
-> **検証者の観点**: 「古い資産ほど個別対応になりがち」が実情。ただし **Shift Toolkit 側にも OS 制約**があり（RHEL 7.2+ / 8 / 9、CentOS 7、Windows Server 2016+ 等。CentOS/RHEL 5.x/6.x は非対応、本レポート 2.3 参照）、「Shift Toolkit ならレガシーを解決できる」という主張はできない。本質的な打ち手は **OS 起動（AMI/EBS、OS サポートマトリクスに依存）とデータ層（FSxN、ONTAP 機能継続）を分離して設計する**こと。レガシー OS で起動変換が困難でも、データを FSxN に寄せておけば「データのモダナイズ」と「OS の延命/再構築」を切り離して判断できる。これが本検証で確かめる仮説の一つ。
+> **検証者の観点**: 「古い資産ほど個別対応になりがち」が実情。ただし **Shift Toolkit 側にも OS 制約**があり（RHEL 7.2+ / 8 / 9、CentOS 7、Windows Server 2016+ 等。CentOS/RHEL 5.x/6.x は非対応、本レポート 2.3 参照）、「Shift Toolkit ならレガシーを解決できる」という主張はできない。本質的な打ち手は **OS 起動（AMI/EBS、OS サポートマトリクスに依存）とデータ層（FSx for ONTAP、ONTAP 機能継続）を分離して設計する**こと。レガシー OS で起動変換が困難でも、データを FSx for ONTAP に寄せておけば「データのモダナイズ」と「OS の延命/再構築」を切り離して判断できる。これが本検証で確かめる仮説の一つ。
 
 > ⚠️ 上記 OS バージョン・EOL 日付は **2026-06 時点**の一次情報。AWS により随時更新されるため、引用時は取得日を明記し、最新ドキュメントで再確認すること。
 
@@ -345,9 +345,9 @@ AWS Transform の料金は「サービス（エージェント）」と「生成
 |------|------|
 | Assessment / Windows / Mainframe / **VMware 移行**エージェント | **無料** |
 | Custom transformation エージェント（コード/API/フレームワーク変換） | **有料**: $0.035 / agent-minute（最小1分単位、能動的な計画・解析・変更時間のみ課金。ローカルビルド/アイドルは対象外） |
-| 移行先 AWS インフラ（EC2 / EBS / **FSxN** / データ転送 / NAT・VPC エンドポイント等） | **通常料金で別途課金** |
+| 移行先 AWS インフラ（EC2 / EBS / **FSx for ONTAP** / データ転送 / NAT・VPC エンドポイント等） | **通常料金で別途課金** |
 
-> **検証者の観点**: VMware → EC2/FSxN 移行では **AWS Transform のサービス利用自体は無料**であり、実コストの中心は移行先インフラ（特に EC2 + EBS ルート + FSxN）。Shift Toolkit も「無償ツール + インフラ実費」という同じ構造で、**両者ともツール費よりインフラ設計（FSxN サイジング・Storage Efficiency）がコストを左右する**。本検証の FinOps 観点（6章 Phase 3d）と整合させ、「サービス無料」を「移行全体が無料」と誤認させない説明が必要。
+> **検証者の観点**: VMware → EC2/FSx for ONTAP 移行では **AWS Transform のサービス利用自体は無料**であり、実コストの中心は移行先インフラ（特に EC2 + EBS ルート + FSx for ONTAP）。Shift Toolkit も「無償ツール + インフラ実費」という同じ構造で、**両者ともツール費よりインフラ設計（FSx for ONTAP サイジング・Storage Efficiency）がコストを左右する**。本検証の FinOps 観点（6章 Phase 3d）と整合させ、「サービス無料」を「移行全体が無料」と誤認させない説明が必要。
 
 #### 3.2.4 AWS Transform リリースを受けた NetApp 確認事項（既存 Q1–Q4 に追加）
 
@@ -355,7 +355,7 @@ AWS Transform の料金は「サービス（エージェント）」と「生成
 
 | # | 質問 | 影響度 |
 |---|------|--------|
-| A1 | AWS Transform の FSxN 移行は内部で Shift Toolkit / FlexClone / SnapMirror を使うのか、AWS ネイティブのブロックレプリケーションか? | Critical |
+| A1 | AWS Transform の FSx for ONTAP 移行は内部で Shift Toolkit / FlexClone / SnapMirror を使うのか、AWS ネイティブのブロックレプリケーションか? | Critical |
 | A2 | NetApp DII 連携は discovery のみか、移行実行フェーズにも及ぶか? | High |
 | A3 | NetApp として顧客に Shift Toolkit と AWS Transform をどう使い分け案内する想定か（置き換え / 補完 / 並存）? | High |
 
@@ -364,19 +364,19 @@ AWS Transform の料金は「サービス（エージェント）」と「生成
 | # | 質問 | 影響度 |
 |---|------|--------|
 | B1 | Shift Toolkit Early Preview は OS ディスクの AMI 化まで含むか、データディスクのみか?（既存 Q1 と統合） | Critical |
-| B2 | 含まない場合、AWS Transform でコンピュート（ルート = EBS）、Shift Toolkit でデータ（FSxN）の分担は NetApp 推奨構成として成立するか? | High |
+| B2 | 含まない場合、AWS Transform でコンピュート（ルート = EBS）、Shift Toolkit でデータ（FSx for ONTAP）の分担は NetApp 推奨構成として成立するか? | High |
 
-**C. FSxN 移行先としての仕様**
+**C. FSx for ONTAP 移行先としての仕様**
 
 | # | 質問 | 影響度 |
 |---|------|--------|
-| C1 | AWS Transform の FSxN 移行先はブロック（iSCSI LUN）のみか、NFS データストア相当も対象か? | High |
+| C1 | AWS Transform の FSx for ONTAP 移行先はブロック（iSCSI LUN）のみか、NFS データストア相当も対象か? | High |
 | C2 | 移行後に Snapshot / SnapMirror / FlexClone / Storage Efficiency はそのまま継続利用できるか（系譜・メタデータの引き継ぎ有無）? | Critical |
 | C3 | 対応リージョン（東京 ap-northeast-1 で Preview 利用可否）と Preview の制約・GA 時期は? | Medium |
 
 > ⚠️ **distinction discipline**: 上表のうち「AWS ネイティブの仕組み」「ルートの EBS 化を自動吸収」はリリースノートからの**推定**であり、一次情報での確認が必要。Public Preview のため GA 仕様・対応リージョン・制約は確定情報として扱わない。
 
-### 3.3 EC2 + FSxN 構成パターン
+### 3.3 EC2 + FSx for ONTAP 構成パターン
 
 **推奨構成:**
 
@@ -398,7 +398,7 @@ AWS Transform の料金は「サービス（エージェント）」と「生成
 └─────────────────────────────────────┘
 ```
 
-**BlueXP Workload Factory Migration Advisor のストレージ戦略:**
+**BlueXP Workload Factory Migration Advisor のストレージ戦略:** <!-- allow:naming -->
 
 - **OS ボリューム**: EBS gp3（EC2 ブート要件）
 - **データボリューム**: FSx for ONTAP iSCSI LUN
@@ -406,7 +406,7 @@ AWS Transform の料金は「サービス（エージェント）」と「生成
   - Standard: 汎用（autotiering 有効）
   - Capacity-optimized: アーカイブ/低アクセス
 
-> 出典: [AWS Storage Blog - BlueXP Migration Advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/)
+> 出典: [AWS Storage Blog - BlueXP Migration Advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/) <!-- allow:naming -->
 
 ---
 
@@ -424,11 +424,11 @@ AWS Storage Blog では、VMware から Amazon EC2 と FSx for ONTAP への移�
 
 | 価値 | 説明 | 根拠 |
 |------|------|------|
-| 新しい移行パス | VMware → EC2 + FSxN。データディスクを FSxN に配置する構成 | [AWS Storage Blog (2024/10)](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/) |
-| スケーラビリティ + データ管理 | EC2 のコンピュート弾力性 + ONTAP のエンタープライズストレージ機能 | FSx ONTAP は VM レベルの I/O 制限なし（ネットワーク帯域のみ） |
-| コスト最適化 | EBS のみ vs EBS + FSxN ハイブリッド。FSxN の thin provisioning、dedup、compression で実効容量削減 | BlueXP Migration Advisor がコスト比較を自動生成 |
+| 新しい移行パス | VMware → EC2 + FSx for ONTAP。データディスクを FSx for ONTAP に配置する構成 | [AWS Storage Blog (2024/10)](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/) |
+| スケーラビリティ + データ管理 | EC2 のコンピュート弾力性 + ONTAP のエンタープライズストレージ機能 | FSx for ONTAP は VM レベルの I/O 制限なし（ネットワーク帯域のみ） |
+| コスト最適化 | EBS のみ vs EBS + FSx for ONTAP ハイブリッド。FSx for ONTAP の thin provisioning、dedup、compression で実効容量削減 | BlueXP Migration Advisor がコスト比較を自動生成 | <!-- allow:naming -->
 | VMware Migration Accelerator | 移行 VM あたり最大 $400 USD クレジット | [AWS VMware Migration Accelerator](https://aws.amazon.com/vmware/migrationaccelerator/) |
-| 小型インスタンスでの高性能 | FSx ONTAP は network bandwidth limits のみ → 小さい EC2 で高 IOPS 実現 | FSx ONTAP で最大 ~350K IOPS（※条件付き: Flash Cache 有効、複数 iSCSI セッション、ワーキングセットサイズ 5% 以下の場合。[出典: NetApp Solutions](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/migrate-vms-to-ec2-fsxn-overview.html)。本検証で実測予定） |
+| 小型インスタンスでの高性能 | FSx for ONTAP は network bandwidth limits のみ → 小さい EC2 で高 IOPS 実現 | FSx for ONTAP で最大 ~350K IOPS（※条件付き: Flash Cache 有効、複数 iSCSI セッション、ワーキングセットサイズ 5% 以下の場合。[出典: NetApp Solutions](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/migrate-vms-to-ec2-fsxn-overview.html)。本検証で実測予定） |
 
 > **検証者の観点**: これは単なる VM の置き換えではなく、VMware ベースの既存資産を AWS 上で再配置し、将来的には AWS ネイティブサービスとの連携、運用自動化、DR、データ活用へ広げていくための入口になると考えています。
 
@@ -444,11 +444,11 @@ Shift Toolkit 側でも、NetApp は ONTAP の FlexClone 技術を活用して V
 
 | 価値 | 説明 | 根拠 |
 |------|------|------|
-| ONTAP 運用モデルの継続 | Snapshot、FlexClone、SnapMirror、Storage Efficiency が AWS でそのまま利用可能 | FSx ONTAP は完全マネージドの ONTAP ファイルシステム |
+| ONTAP 運用モデルの継続 | Snapshot、FlexClone、SnapMirror、Storage Efficiency が AWS でそのまま利用可能 | FSx for ONTAP は完全マネージドの ONTAP ファイルシステム |
 | FlexClone による移行加速 | 1TB VMDK の変換が数秒〜数分。データコピー不要 | [Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-overview.html) |
-| SnapMirror によるデータ転送 | オンプレ ONTAP → FSx ONTAP へのブロックレベルレプリケーション | [Migrate VMs to EC2 - Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/migrate-vms-to-ec2-fsxn-overview.html) |
-| iSCSI LUN の継続利用 | オンプレで使用していた iSCSI ベースのワークロードを FSx ONTAP で継続 | マルチプロトコル対応（NFS/SMB/iSCSI） |
-| 既存スキルの活用 | ONTAP CLI/API、SnapCenter、SnapMirror の運用知識がそのまま活かせる | FSx ONTAP は ONTAP API 互換 |
+| SnapMirror によるデータ転送 | オンプレ ONTAP → FSx for ONTAP へのブロックレベルレプリケーション | [Migrate VMs to EC2 - Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/migrate-vms-to-ec2-fsxn-overview.html) |
+| iSCSI LUN の継続利用 | オンプレで使用していた iSCSI ベースのワークロードを FSx for ONTAP で継続 | マルチプロトコル対応（NFS/SMB/iSCSI） |
+| 既存スキルの活用 | ONTAP CLI/API、SnapCenter、SnapMirror の運用知識がそのまま活かせる | FSx for ONTAP は ONTAP API 互換 |
 
 > **検証者の観点**: これは「ONTAP を持っているから移行できる」だけではなく、「ONTAP の運用モデルを AWS でも活かせる」ことが重要です。Shift Toolkit が ONTAP / FlexClone の特性を活かして VM 移行やディスク変換を高速化することで、NetApp ストレージは単なる保存先ではなく、移行そのものを加速するプラットフォームになります。
 
@@ -495,7 +495,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 この質問から始まるデシジョンフロー:
 
 1. 現在のストレージは ONTAP か? → Yes: Shift Toolkit / CMC が候補。No: MGN が候補
-2. データディスクの ONTAP 機能（Snapshot, Clone, DR）を AWS でも使い続けたいか? → Yes: FSxN + Shift Toolkit
+2. データディスクの ONTAP 機能（Snapshot, Clone, DR）を AWS でも使い続けたいか? → Yes: FSx for ONTAP + Shift Toolkit
 3. 移行規模は? → 大規模: CMC。中小規模/PoC: Shift Toolkit
 4. いつ移行したいか? → 今すぐ（GA ツールのみ）: MGN or CMC。将来計画: Shift Toolkit Early Preview を先行検証
 
@@ -506,21 +506,21 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 - コスト比較レポート（Phase 3d の結果）
 - PoC 実行計画テンプレート（Phase 1-3 を簡略化したもの）
 
-| ツール | 提供元 | アプローチ | FSxN 対応 | OS ディスク先 | データディスク先 | 特徴 | 適用シナリオ |
+| ツール | 提供元 | アプローチ | FSx for ONTAP 対応 | OS ディスク先 | データディスク先 | 特徴 | 適用シナリオ |
 |--------|--------|-----------|-----------|-------------|--------------|------|------------|
-| **Shift Toolkit** | NetApp | ONTAP FlexClone + ディスク変換 | ✅ (データディスク・Early Preview) | EBS (想定) | FSx ONTAP iSCSI | ONTAP 顧客向け、数秒での変換、無償 | ONTAP NFS データストア利用中の環境 |
-| **Cirrus Migrate Cloud (CMC)** | Cirrus Data Solutions | エージェントベース・ブロックレプリケーション | ✅ (iSCSI LUN 自動構成) | EBS | FSx ONTAP / EBS | YAML ベース自動化 (MigrateOps)、VM 稼働中に移行 | 大規模エンタープライズ移行 |
+| **Shift Toolkit** | NetApp | ONTAP FlexClone + ディスク変換 | ✅ (データディスク・Early Preview) | EBS (想定) | FSx for ONTAP iSCSI | ONTAP 顧客向け、数秒での変換、無償 | ONTAP NFS データストア利用中の環境 |
+| **Cirrus Migrate Cloud (CMC)** | Cirrus Data Solutions | エージェントベース・ブロックレプリケーション | ✅ (iSCSI LUN 自動構成) | EBS | FSx for ONTAP / EBS | YAML ベース自動化 (MigrateOps)、VM 稼働中に移行 | 大規模エンタープライズ移行 |
 | **AWS MGN (Application Migration Service)** | AWS | エージェントベース・継続レプリケーション | ❌ (EBS のみ) | EBS | EBS | AWS 標準ツール、幅広い OS 対応、無償 | 汎用的な Lift & Shift |
-| **BlueXP Workload Factory Migration Advisor** | NetApp/AWS | 計画 + 最適化 + 自動デプロイ | ✅ (計画・ストレージ最適化) | EBS gp3 | FSx ONTAP iSCSI | RVTools/PowerCLI 連携、コスト比較、IaC 出力 | 移行計画・サイジング |
+| **BlueXP Workload Factory Migration Advisor** | NetApp/AWS | 計画 + 最適化 + 自動デプロイ | ✅ (計画・ストレージ最適化) | EBS gp3 | FSx for ONTAP iSCSI | RVTools/PowerCLI 連携、コスト比較、IaC 出力 | 移行計画・サイジング | <!-- allow:naming -->
 | **VMware HCX** | VMware/Broadcom | ライブマイグレーション | ❌ (VMC on AWS 専用) | VMFS/vSAN | VMFS/vSAN | VMC 専用、vMotion ベース、ライブ移行 | VMC on AWS への移行 |
 | **AWS VM Import/Export** | AWS | VMDK/VHD/OVA → AMI 変換 | ❌ | EBS | EBS | AWS 標準、バッチ処理向き | 小規模・手動移行 |
-| **AWS Transform** | AWS | エージェント型 AI オーケストレーション（discovery→計画→移行） | ✅ (ブロック宛先・Public Preview) | EBS | FSx ONTAP / EBS | 移行ウェーブ一括（compute+NW+storage）。VMware移行は無料、discovery が NetApp DII 対応 | AWS ネイティブ一気通貫・大規模計画・ソース混在 |
+| **AWS Transform** | AWS | エージェント型 AI オーケストレーション（discovery→計画→移行） | ✅ (ブロック宛先・Public Preview) | EBS | FSx for ONTAP / EBS | 移行ウェーブ一括（compute+NW+storage）。VMware移行は無料、discovery が NetApp DII 対応 | AWS ネイティブ一気通貫・大規模計画・ソース混在 |
 
 ### 5.1 Shift Toolkit の特徴と適した場面
 
 1. **データコピー不要（Zero Data Copy）**: FlexClone により物理データの移動なしでディスク変換。データコピー/レプリケーションを伴うアプローチに比べ、転送量と所要時間を抑えられる
 2. **変換速度**: 1TB あたり数秒〜数分（データコピー方式では同規模で数時間〜数日を要する場合がある）
-3. **提供形態**: NetApp から無償で提供。提供形態（有償/無償）や FSxN 対応の有無は選択肢ごとに異なる（セクション 5.0 の表を参照）
+3. **提供形態**: NetApp から無償で提供。提供形態（有償/無償）や FSx for ONTAP 対応の有無は選択肢ごとに異なる（セクション 5.0 の表を参照）
 4. **ONTAP エコシステム統合**: 既存の ONTAP ストレージ上の VM をそのまま活用。追加のストレージリソース不要
 5. **ソース VM 非破壊**: ソース VM にはスクリプトコピーのみ。失敗時のロールバックが即座に可能
 
@@ -536,14 +536,14 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 
 ### 6.0 検証の成功指標（検証開始前に定義）
 
-この検証は、VMware 顧客が EC2 + FSxN へ移行する際の**意思決定材料を提供する**ことをゴールとする。「Shift Toolkit で移行できた」だけでは成功ではなく、以下の指標を満たすことで「顧客が判断できる状態」を達成する。
+この検証は、VMware 顧客が EC2 + FSx for ONTAP へ移行する際の**意思決定材料を提供する**ことをゴールとする。「Shift Toolkit で移行できた」だけでは成功ではなく、以下の指標を満たすことで「顧客が判断できる状態」を達成する。
 
 | # | 成功指標 | 目標値 | 測定方法 | 対応ブログ記事 |
 |---|---------|--------|---------|-------------|
 | S1 | データディスク変換時間 | FlexClone 活用で 100GB あたり 5分以内（データコピーを伴う方式は転送時間が支配的になるのに対し、FlexClone は変換時間を最小化できることを実測で確認） | Shift Toolkit ジョブログのタイムスタンプ | #2, #4, #5 |
 | S2 | カットオーバー停止時間 | 全体プロセスの停止時間を実測し記録。目標: 30分以内（小規模 VM） | VM 停止〜EC2 起動完了の時刻差分 | #4, #5 |
 | S3 | データ整合性 | 100% 一致（ゼロ差分） | 移行前後の sha256sum 全ファイル比較 | #4, #5 |
-| S4 | FSxN iSCSI パフォーマンス | ベースラインとの比較レポート作成。同一 FSxN 構成内で ±10% の再現性 | fio (4K random R/W, 64K sequential R/W) — パラメータ詳細は Phase 3c 参照 | #6 |
+| S4 | FSx for ONTAP iSCSI パフォーマンス | ベースラインとの比較レポート作成。同一 FSx for ONTAP 構成内で ±10% の再現性 | fio (4K random R/W, 64K sequential R/W) — パラメータ詳細は Phase 3c 参照 | #6 |
 | S5 | ONTAP 機能動作確認 | Snapshot/Clone/Efficiency の全項目 PASS | ONTAP CLI 実行結果のエビデンス | #7 |
 | S6 | コスト比較 | EBS のみ構成との月額コスト差を算出。Storage Efficiency 反映後の実効コストも提示 | AWS Pricing Calculator + 実測データ | #8 |
 | S7 | 手順の再現性 | 第三者が手順書のみで再現可能 | 検証者以外による再実行テスト（可能であれば） | 全記事 |
@@ -555,7 +555,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 | やってよいこと | やってはいけないこと |
 |-------------|-----------------|
 | テストデータ（ダミー）でのディスク変換テスト | 本番データでの移行 |
-| FSxN iSCSI パフォーマンスベンチマーク | Early Preview の結果を「GA 時のパフォーマンス保証」として記載 |
+| FSx for ONTAP iSCSI パフォーマンスベンチマーク | Early Preview の結果を「GA 時のパフォーマンス保証」として記載 |
 | 移行後の ONTAP 機能動作確認 | Early Preview の NDA 対象情報の公開 |
 | ツール選択の判断材料としての結果共有 | GA されていない機能を「推奨」として顧客に案内 |
 | NetApp との技術的フィードバック共有 | 未公開の Early Preview 手順をブログに掲載（公開可能範囲を事前確認） |
@@ -570,12 +570,12 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 
 | リソース | 構成 | 備考 |
 |---------|------|------|
-| VPC | 専用 VPC + Private Subnets (2 AZ) | FSxN Multi-AZ 用 |
+| VPC | 専用 VPC + Private Subnets (2 AZ) | FSx for ONTAP Multi-AZ 用 |
 | FSx for ONTAP | Multi-AZ, SSD 1TB, 512 MB/s throughput | iSCSI LUN 対応確認 |
 | EC2 (テスト) | Amazon Linux 2023 + Windows Server 2022 | 移行先インスタンス |
-| Security Groups | iSCSI (3260), SSH (22), RDP (3389), NFS (2049) | FSxN ↔ EC2 通信 |
+| Security Groups | iSCSI (3260), SSH (22), RDP (3389), NFS (2049) | FSx for ONTAP ↔ EC2 通信 |
 | VPN/DX | Site-to-Site VPN または Direct Connect | オンプレ ↔ AWS 接続 |
-| IAM | FSxN 管理ロール + EC2 プロビジョニング権限 | 最小権限原則 |
+| IAM | FSx for ONTAP 管理ロール + EC2 プロビジョニング権限 | 最小権限原則 |
 
 #### オンプレ側
 
@@ -608,14 +608,14 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 
 - 移行元 VM の vCPU/RAM に対して同等以上の EC2 インスタンスタイプを選定
 - Nitro ベース（m5 以降）を使用（ENA/NVMe ドライバ動作確認のため）
-- 検証用のため最小限のサイズ。本番サイジングは BlueXP Migration Advisor を推奨
+- 検証用のため最小限のサイズ。本番サイジングは AWS Pricing Calculator + ONTAP Storage Efficiency 見積もりで算出
 
 #### 移行手順（予定）
 
-1. SnapMirror でオンプレ ONTAP → FSx ONTAP へデータディスクをレプリケーション
+1. SnapMirror でオンプレ ONTAP → FSx for ONTAP へデータディスクをレプリケーション
 2. Shift Toolkit で VMDK → 中間フォーマット変換（Early Preview の手順に従う）
 3. OS ディスクから AMI 作成（VM Import/Export or CMC 利用）
-4. EC2 インスタンス起動 + FSx ONTAP iSCSI LUN アタッチ
+4. EC2 インスタンス起動 + FSx for ONTAP iSCSI LUN アタッチ
 5. ネットワーク設定・アプリケーション動作確認
 
 **注意**: 具体的な手順は Early Preview の機能仕様確認後に更新する。
@@ -643,16 +643,16 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 | 10 | Windows ライセンス状態 | BYOL or License Included の判定、アクティベーション状態 | `slmgr /dli` | BYOL の場合 KMS or MAK 設定要確認 |
 | 11 | タイムゾーン/NTP | UTC 設定 + chrony/w32tm 正常同期 | `timedatectl`, `chronyc sources` | VMware Tools 時刻同期からの切り替え |
 
-#### 3c. FSxN iSCSI ストレージ検証（Storage Specialist 観点）
+#### 3c. FSx for ONTAP iSCSI ストレージ検証（Storage Specialist 観点）
 
-**FSxN 検証構成の記録要件（全ベンチマークに対して必須）:**
+**FSx for ONTAP 検証構成の記録要件（全ベンチマークに対して必須）:**
 
 | パラメータ | 検証構成（予定） | 記録方法 |
 |-----------|----------------|---------|
-| FSxN デプロイメントタイプ | Multi-AZ | FSxN Console / CLI |
-| SSD ストレージ容量 | 1 TB | FSxN Console |
-| プロビジョニングスループット | 512 MB/s | FSxN Console |
-| Flash Cache | 有効 / 無効（両方測定） | FSxN Console |
+| FSx for ONTAP デプロイメントタイプ | Multi-AZ | FSx for ONTAP Console / CLI |
+| SSD ストレージ容量 | 1 TB | FSx for ONTAP Console |
+| プロビジョニングスループット | 512 MB/s | FSx for ONTAP Console |
+| Flash Cache | 有効 / 無効（両方測定） | FSx for ONTAP Console |
 | iSCSI セッション数 | 4 セッション | `iscsiadm -m session` |
 | EC2 インスタンスタイプ | m5.xlarge | EC2 Console |
 | EC2 ネットワーク帯域 | 最大 10 Gbps | インスタンス仕様 |
@@ -709,38 +709,38 @@ fio --name=64k-seqwrite \
 - Latency (μs): avg / P50 / P90 / P95 / P99 / Max
 - benchmark_run_id: `{test_name}_{fsxn_config}_{timestamp}`
 
-> **重要注記（全ベンチマーク結果に付与）:** 本測定結果は特定の検証環境における**サイジングリファレンス**であり、**FSx for ONTAP のサービスリミットを示すものではない**。実環境でのパフォーマンスは、ワークロード特性、ネットワーク構成、FSxN の設定により異なる。
+> **重要注記（全ベンチマーク結果に付与）:** 本測定結果は特定の検証環境における**サイジングリファレンス**であり、**FSx for ONTAP のサービスリミットを示すものではない**。実環境でのパフォーマンスは、ワークロード特性、ネットワーク構成、FSx for ONTAP の設定により異なる。
 
 | # | 検証項目 | 判定基準 | ツール | 備考 |
 |---|---------|---------|-------|------|
 | 12 | iSCSI 接続確認 | LUN がマウント可能、R/W 正常 | `iscsiadm`, `lsblk`, `mount` | マルチパス構成含む |
-| 13 | マルチパス (MPIO) 構成 | 2パス以上のアクティブパス確認 | `multipath -ll` (Linux) / `mpclaim` (Windows) | FSxN Multi-AZ の場合は preferred/non-preferred |
-| 14 | FSxN iSCSI IOPS (4K Random) | 実測値を記録（ベースライン作成） | `fio --bs=4k --iodepth=64 --rw=randread` | FSxN 構成: SSD容量, スループット, Flash Cache 有無を記録 |
-| 15 | FSxN iSCSI Throughput (64K Seq) | 実測値を記録 | `fio --bs=64k --iodepth=32 --rw=read` | プロビジョニングスループットとの比較 |
-| 16 | 共有スループット影響 | NFS/SMB 並行アクセス時の iSCSI 性能変化 | fio + 並行 NFS コピー | **FSxN は NFS/SMB/iSCSI でスループットを共有する** — これを実測で確認 |
-| 17 | ONTAP Snapshot | スナップショット作成・リストアが正常完了 | ONTAP CLI: `volume snapshot create/restore` | FSxN Console からも確認 |
+| 13 | マルチパス (MPIO) 構成 | 2パス以上のアクティブパス確認 | `multipath -ll` (Linux) / `mpclaim` (Windows) | FSx for ONTAP Multi-AZ の場合は preferred/non-preferred |
+| 14 | FSx for ONTAP iSCSI IOPS (4K Random) | 実測値を記録（ベースライン作成） | `fio --bs=4k --iodepth=64 --rw=randread` | FSx for ONTAP 構成: SSD容量, スループット, Flash Cache 有無を記録 |
+| 15 | FSx for ONTAP iSCSI Throughput (64K Seq) | 実測値を記録 | `fio --bs=64k --iodepth=32 --rw=read` | プロビジョニングスループットとの比較 |
+| 16 | 共有スループット影響 | NFS/SMB 並行アクセス時の iSCSI 性能変化 | fio + 並行 NFS コピー | **FSx for ONTAP は NFS/SMB/iSCSI でスループットを共有する** — これを実測で確認 |
+| 17 | ONTAP Snapshot | スナップショット作成・リストアが正常完了 | ONTAP CLI: `volume snapshot create/restore` | FSx for ONTAP Console からも確認 |
 | 18 | ONTAP FlexClone | LUN クローンが高速完了（秒単位） | ONTAP CLI: `volume clone create` | データコピーなしの確認 |
 | 19 | Storage Efficiency | Dedup/Compression の有効化と効率レポート | ONTAP CLI: `volume efficiency show` | 移行後データでの実効削減率 |
-| 20 | SnapMirror レプリケーション | オンプレ→FSxN のレプリケーション正常完了 | ONTAP CLI: `snapmirror show` | 初期転送 + 増分の動作確認 |
+| 20 | SnapMirror レプリケーション | オンプレ→FSx for ONTAP のレプリケーション正常完了 | ONTAP CLI: `snapmirror show` | 初期転送 + 増分の動作確認 |
 
 #### 3d. コスト検証（FinOps 観点）
 
 | # | 検証項目 | 判定基準 | ツール |
 |---|---------|---------|-------|
-| 21 | FSxN 月額コスト試算 | 検証構成での月額を算出 | AWS Pricing Calculator + 実測使用量 |
+| 21 | FSx for ONTAP 月額コスト試算 | 検証構成での月額を算出 | AWS Pricing Calculator + 実測使用量 |
 | 22 | EBS 同等構成コスト試算 | 同容量・同 IOPS を EBS で実現した場合の月額 | AWS Pricing Calculator |
-| 23 | TCO 比較レポート | FSxN vs EBS のみ構成の月額差を表形式で提示 | スプレッドシート |
+| 23 | TCO 比較レポート | FSx for ONTAP vs EBS のみ構成の月額差を表形式で提示 | スプレッドシート |
 | 24 | Storage Efficiency によるコスト削減効果 | Dedup/Compression 後の実効容量での再計算 | ONTAP CLI + Pricing |
 
 #### 3e. 移行後運用検証（Reliability/Ops 観点）
 
 | # | 検証項目 | 判定基準 | ツール |
 |---|---------|---------|-------|
-| 25 | CloudWatch 監視 | FSxN メトリクス (IOPS, Throughput, Latency) が取得可能 | CloudWatch Console |
+| 25 | CloudWatch 監視 | FSx for ONTAP メトリクス (IOPS, Throughput, Latency) が取得可能 | CloudWatch Console |
 | 26 | CloudWatch Alarms | 閾値超過時のアラーム発報確認 | CloudWatch Alarms + SNS |
-| 27 | バックアップ (AWS Backup) | FSxN ボリュームの AWS Backup 統合確認 | AWS Backup Console |
+| 27 | バックアップ (AWS Backup) | FSx for ONTAP ボリュームの AWS Backup 統合確認 | AWS Backup Console |
 | 28 | 障害時ロールバック手順 | EC2 障害時に Snapshot からの復旧手順を文書化・実行 | ONTAP Snapshot + EC2 再作成 |
-| 29 | DR 構成（SnapMirror Cross-Region） | 別リージョンへの FSxN レプリケーション確認 | SnapMirror + FSxN (DR リージョン) |
+| 29 | DR 構成（SnapMirror Cross-Region） | 別リージョンへの FSx for ONTAP レプリケーション確認 | SnapMirror + FSx for ONTAP (DR リージョン) |
 
 ### Phase 4: ドキュメント・記事化
 
@@ -761,9 +761,9 @@ fio --name=64k-seqwrite \
 
 | # | タイトル案 | 内容 | 対象読者 |
 |---|-----------|------|---------|
-| 1 | VMware 移行の選択肢を整理する — なぜ EC2 + FSx for ONTAP なのか | 背景、ツール比較、FSxN の価値 | 全ペルソナ |
+| 1 | VMware 移行の選択肢を整理する — なぜ EC2 + FSx for ONTAP なのか | 背景、ツール比較、FSx for ONTAP の価値 | 全ペルソナ |
 | 2 | Shift Toolkit とは何か — FlexClone が変える VM 移行の常識 | ツール概要、FlexClone の仕組み、デモ | NetApp/VMware ユーザー |
-| 3 | 検証環境構築 — VPC + FSxN + VPN の設計と構築 | AWS 環境準備、CFn テンプレート | AWS ユーザー |
+| 3 | 検証環境構築 — VPC + FSx for ONTAP + VPN の設計と構築 | AWS 環境準備、CFn テンプレート | AWS ユーザー |
 | 4 | 実践: Linux VM の移行 — RHEL 9 を EC2 へ | ステップバイステップ手順、スクリーンショット | 全ペルソナ |
 | 5 | 実践: Windows VM の移行 — Windows Server 2022 を EC2 へ | Windows 固有の考慮事項、ネットワーク設定 | VMware/AWS ユーザー |
 | 6 | FSx for ONTAP iSCSI パフォーマンス検証 | fio ベンチマーク、EBS 比較 | AWS/NetApp ユーザー |
@@ -815,8 +815,8 @@ AWS、NetApp、VMware の観点をつなげると、このプレビューは「V
 
 ### AWS 公式ブログ・ドキュメント
 
-- [Seamless migration from any VMware environment to FSx ONTAP and EC2](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
-- [Expedite VMware migration to EC2 and FSxN using BlueXP migration advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/)
+- [Seamless migration from any VMware environment to FSx for ONTAP and EC2](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
+- [Expedite VMware migration to EC2 and FSx for ONTAP using BlueXP migration advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/) <!-- allow:naming -->
 - [Amazon FSx for NetApp ONTAP Documentation](https://aws.amazon.com/documentation-overview/netapp-ontap/)
 - [Amazon FSx for ONTAP User Guide](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/how-it-works-fsx-ontap.html)
 - [AWS VMware Migration Accelerator](https://aws.amazon.com/vmware/migrationaccelerator/)
@@ -834,27 +834,27 @@ AWS、NetApp、VMware の観点をつなげると、このプレビューは「V
 - [How AWS Is Using Agentic AI To Reinvent Infrastructure Modernization](https://aws.amazon.com/blogs/migration-and-modernization/how-aws-is-using-agentic-ai-to-reinvent-infrastructure-modernization/) (2026-06) — エージェント型 AI ベースのモダナイゼーション概説
 - [AWS Transform VMware — Migrate servers (UserGuide)](https://docs.aws.amazon.com/transform/latest/userguide/transform-vmware-migrate-servers.html) — ウェーブ設定、レプリケーション、テスト、カットオーバーの公式手順
 
-> **注意**: FSxN をストレージ宛先にする検証ブログは 2026-06-18 時点で未公開（発表が 6/16 のため）。本検証が、FSxN 宛先を含む実践的な検証記事の一つになりうる。
+> **注意**: FSx for ONTAP をストレージ宛先にする検証ブログは 2026-06-18 時点で未公開（発表が 6/16 のため）。本検証が、FSx for ONTAP 宛先を含む実践的な検証記事の一つになりうる。
 
 ### NetApp 公式ブログ
 
-- [Migrate VMware to Amazon EC2 & iSCSI-based FSx for ONTAP](https://www.netapp.com/blog/aws-fsxn-blg-migrate-vmware-to-amazon-ec2-iscsi-based-fsx-for-ontap/) (2026-06) — EC2 + FSxN iSCSI 構成への移行。AWS Transform の FSxN 連携にも言及
+- [Migrate VMware to Amazon EC2 & iSCSI-based FSx for ONTAP](https://www.netapp.com/blog/aws-fsxn-blg-migrate-vmware-to-amazon-ec2-iscsi-based-fsx-for-ontap/) (2026-06) — EC2 + FSx for ONTAP iSCSI 構成への移行。AWS Transform の FSx for ONTAP 連携にも言及
 
 ### その他
 
 - [VMware on AWS — Modernization with Amazon EVS & FSx for ONTAP](https://www.netapp.com/aws/fsx-ontap/vmware-cloud/)
-- [BlueXP Workload Factory](https://www.netapp.com/bluexp/workload-factory/)
+- [BlueXP Workload Factory](https://www.netapp.com/bluexp/workload-factory/) <!-- allow:naming -->
 - [Cirrus Migrate Cloud on AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-stsxln5eru5wo)
 - [NetApp Shift Toolkit Simulator](https://netapp.github.io/shift-simulator/)
 
 ---
 
-## 付録: FSxN 既知の知見（親プロジェクトからの引用）
+## 付録: FSx for ONTAP 既知の知見（親プロジェクトからの引用）
 
 以下は別プロジェクト (fsxn-lakehouse-integrations) での検証済み知見:
 
-- **FSxN S3 Access Point**: Athena/Glue/Bedrock 連携は検証済み
-- **FSxN iSCSI**: EC2 からのブロックアクセスが可能（本検証のデータディスク配置に直接関連）
+- **FSx for ONTAP S3 Access Point**: Athena/Glue/Bedrock 連携は検証済み
+- **FSx for ONTAP iSCSI**: EC2 からのブロックアクセスが可能（本検証のデータディスク配置に直接関連）
 - **ONTAP 9.17.1**: S3 AP 機能利用可能（本検証で使用する ONTAP バージョンの参考）
 
 ---

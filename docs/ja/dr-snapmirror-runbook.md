@@ -4,7 +4,7 @@
 
 > ⚠️ **スコープと前提（distinction discipline）**
 > - 本 runbook は **DR（継続レプリケーション＋復旧）**を対象とする。一度きりの移行（リホスト）は別ドキュメント（Shift Toolkit / AWS Transform 手順）を参照。
-> - **AWS Transform は移行サービスであり、継続レプリケーション型 DR のオーケストレーターではない。** DR のデータ複製は SnapMirror が担う。AWS ネイティブ DR を比較検討する場合は AWS Elastic Disaster Recovery (DRS) が候補だが、DRS は EBS ベースで FSxN ランディングとは設計が異なる（本 runbook の対象外）。
+> - **AWS Transform は移行サービスであり、継続レプリケーション型 DR のオーケストレーターではない。** DR のデータ複製は SnapMirror が担う。AWS ネイティブ DR を比較検討する場合は AWS Elastic Disaster Recovery (DRS) が候補だが、DRS は EBS ベースで FSx for ONTAP ランディングとは設計が異なる（本 runbook の対象外）。
 > - 数値（RPO/RTO 等）は検証で実測する目標値であり、保証値ではない。
 
 ---
@@ -21,9 +21,9 @@ VMware ESXi + ONTAP                         Amazon EC2 (待機/オンデマン�
                                               destination volume (RW 化で復旧)
 ```
 
-- **データ複製**: ONTAP SnapMirror（Async）でオンプレ ONTAP → FSxN へ増分転送
+- **データ複製**: ONTAP SnapMirror（Async）でオンプレ ONTAP → FSx for ONTAP へ増分転送
 - **コンピュート**: 平常時は EC2 を起動しない（コスト最小化）。障害時に AMI から起動 or 事前作成インスタンスを起動
-- **復旧の鍵**: FSxN 側 destination volume を break して RW 化 → LUN を igroup にマップ → EC2 から iSCSI アタッチ
+- **復旧の鍵**: FSx for ONTAP 側 destination volume を break して RW 化 → LUN を igroup にマップ → EC2 から iSCSI アタッチ
 
 ---
 
@@ -42,21 +42,21 @@ VMware ESXi + ONTAP                         Amazon EC2 (待機/オンデマン�
 
 ### 3.1 ネットワーク
 
-- オンプレ ONTAP ↔ FSxN 間: SnapMirror 用ポート（intercluster LIF、TCP 11104/11105）を VPN/DX 経由で開放
-- FSxN ↔ EC2: iSCSI（TCP 3260）。詳細は `fsxn-iscsi-setup.md`
+- オンプレ ONTAP ↔ FSx for ONTAP 間: SnapMirror 用ポート（intercluster LIF、TCP 11104/11105）を VPN/DX 経由で開放
+- FSx for ONTAP ↔ EC2: iSCSI（TCP 3260）。詳細は `fsxn-iscsi-setup.md`
 
 ### 3.2 SnapMirror 関係の確立（クラスタピアリング → SVM ピアリング → 関係作成）
 
 ```text
 # オンプレ ONTAP 側（source クラスタ）で実行する例
-# 1) クラスタピア作成（FSxN 側 intercluster LIF を指定）
+# 1) クラスタピア作成（FSx for ONTAP 側 intercluster LIF を指定）
 cluster peer create -peer-addrs <fsxn-intercluster-lif> -ipspace Default
 
 # 2) SVM ピア作成
 vserver peer create -vserver <onprem-svm> -peer-vserver <fsxn-svm> \
   -applications snapmirror -peer-cluster <fsxn-cluster>
 
-# 3) FSxN 側（destination）で SnapMirror 関係を作成
+# 3) FSx for ONTAP 側（destination）で SnapMirror 関係を作成
 snapmirror create -source-path <onprem-svm>:<src_vol> \
   -destination-path <fsxn-svm>:<dst_vol> \
   -type XDP -schedule <schedule_name>
@@ -100,7 +100,7 @@ lun mapping create -vserver <fsxn-svm> \
 3. ファイルシステムをマウントし、アプリケーションを起動
 4. DNS / ロードバランサ切替で DR サイトへトラフィックを誘導
 
-> **OS/ブートの扱い**: EC2 はデータ（FSxN）から起動できない。DR 用 OS は事前に AMI 化しておくか、ゴールデン AMI から起動して FSxN の data LUN をアタッチする構成にする。移行（リホスト）と同じ「OS=EBS / データ=FSxN」分離原則が DR でも適用される。
+> **OS/ブートの扱い**: EC2 はデータ（FSx for ONTAP）から起動できない。DR 用 OS は事前に AMI 化しておくか、ゴールデン AMI から起動して FSx for ONTAP の data LUN をアタッチする構成にする。移行（リホスト）と同じ「OS=EBS / データ=FSx for ONTAP」分離原則が DR でも適用される。
 
 ---
 
@@ -150,7 +150,7 @@ volume clone ... / lun mapping delete ... / volume destroy <dst_vol>_drtest
 | D6 | RTO 実測 | break〜アプリ応答までの時間 | タイムスタンプ |
 | D7 | FlexClone DR テスト | 本番レプリ非断で起動確認 | `volume clone` |
 | D8 | フェイルバック | 逆方向 resync 成功、データ戻し確認 | `snapmirror resync` |
-| D9 | クロスリージョン DR（任意） | 別リージョン FSxN へのレプリ | SnapMirror + FSxN(DR) |
+| D9 | クロスリージョン DR（任意） | 別リージョン FSx for ONTAP へのレプリ | SnapMirror + FSx for ONTAP(DR) |
 
 ---
 
@@ -162,7 +162,7 @@ volume clone ... / lun mapping delete ... / volume destroy <dst_vol>_drtest
 | break 後の誤操作で resync 不可 | フェイルバック困難 | 手順を runbook 化、DR テストで予行 |
 | OS ブート未準備 | RTO 超過 | DR 用 AMI を事前作成・定期更新 |
 | iSCSI igroup 未登録 | 復旧時にマップ不可 | EC2 initiator を事前登録、または起動時自動化 |
-| コスト誤認 | 想定外課金 | 平常時は EC2 停止。FSxN destination 容量・転送は継続課金 |
+| コスト誤認 | 想定外課金 | 平常時は EC2 停止。FSx for ONTAP destination 容量・転送は継続課金 |
 
 ---
 

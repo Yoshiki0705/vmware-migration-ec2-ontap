@@ -66,7 +66,7 @@ Q2: データディスクを FSx for ONTAP (iSCSI) に配置したいか?
 
 Q3: 移行の進め方は?
     AWS ネイティブで一気通貫（計画〜コンピュート〜ストレージ）/ ソース混在
-        → AWS Transform（VMware 移行は無料・FSxN 宛先は Public Preview）
+        → AWS Transform（VMware 移行は無料・FSx for ONTAP 宛先は Public Preview）
           手順: docs/ja/aws-transform-migration-procedure.md
     ONTAP FlexClone での高速変換・中小規模 / PoC
         → Shift Toolkit (Early Preview) ← 本テンプレート主対象
@@ -111,7 +111,7 @@ Q3: 移行の進め方は?
 
 | Week | 作業内容 | 担当 | 完了基準 |
 |------|---------|------|---------|
-| W1 | 環境準備（AWS: VPC/FSxN/EC2） | パートナー | CFn デプロイ完了 |
+| W1 | 環境準備（AWS: VPC/FSx for ONTAP/EC2） | パートナー | CFn デプロイ完了 |
 | W1 | 環境準備（オンプレ: Shift Toolkit インストール） | 顧客 | Shift Toolkit GUI 起動確認 |
 | W2 | 接続確認（VPN/DX + ポート疎通） | 両者 | ping/telnet 成功 |
 | W2 | SnapMirror 設定 + 初期転送 | パートナー | データ同期完了 |
@@ -128,7 +128,7 @@ Q3: 移行の進め方は?
 | Early Preview の仕様変更 | 手順の再確認が必要 | NetApp との定期連絡、GA 前提の手順は別途整理 |
 | OS ディスク AMI 化の追加工程 | 想定より工数増 | VM Import/Export のバックアッププランを事前準備 |
 | VPN 帯域不足 | SnapMirror 初期転送が遅延 | 初期転送は夜間バッチ、増分のみ日中実行 |
-| FSxN iSCSI パフォーマンス未達 | 顧客期待値と乖離 | プロビジョニングスループット引き上げ、Flash Cache 有効化 |
+| FSx for ONTAP iSCSI パフォーマンス未達 | 顧客期待値と乖離 | プロビジョニングスループット引き上げ、Flash Cache 有効化 |
 
 ---
 
@@ -159,7 +159,7 @@ Q3: 移行の進め方は?
 | 1 | PoC 環境構成図 | パートナー | 顧客技術リード |
 | 2 | 移行手順書（ステップバイステップ） | パートナー | 顧客技術リード |
 | 3 | パフォーマンスベンチマークレポート | パートナー | 顧客技術リード + スポンサー |
-| 4 | コスト比較レポート（EBS vs FSxN） | パートナー | ビジネススポンサー |
+| 4 | コスト比較レポート（EBS vs FSx for ONTAP） | パートナー | ビジネススポンサー |
 | 5 | Go/No-Go 判定資料 | 両者 | ビジネススポンサー |
 | 6 | 本番移行計画（Go の場合） | パートナー | 顧客 |
 

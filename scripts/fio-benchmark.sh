@@ -6,8 +6,8 @@
 #
 # Prerequisites:
 #   - fio installed (sudo yum install -y fio OR sudo apt install -y fio)
-#   - Target device is an FSxN iSCSI LUN (NOT the OS disk!)
-#   - EC2 instance type and FSxN config documented before running
+#   - Target device is an FSx for ONTAP iSCSI LUN (NOT the OS disk!)
+#   - EC2 instance type and FSx for ONTAP config documented before running
 #
 # WARNING: This script writes directly to the block device. ALL DATA WILL BE LOST.
 #          Only use on dedicated test LUNs with no production data.
@@ -77,7 +77,7 @@ cat > "$ENV_FILE" << EOF
   "device_size_gb": $(lsblk -bno SIZE "$DEVICE" 2>/dev/null | awk '{printf "%.1f", $1/1024/1024/1024}' || echo 0),
   "runtime_seconds": $RUNTIME,
   "ramp_time_seconds": $RAMP_TIME,
-  "notes": "SIZING REFERENCE ONLY. Not a service limit. Performance varies by workload, network, and FSxN configuration."
+  "notes": "SIZING REFERENCE ONLY. Not a service limit. Performance varies by workload, network, and FSx for ONTAP configuration."
 }
 EOF
 
@@ -150,7 +150,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "⚠️  IMPORTANT: These results are a SIZING REFERENCE for this"
 echo "    specific test environment. They do NOT represent FSx for"
 echo "    ONTAP service limits. Actual performance depends on:"
-echo "    - FSxN provisioned throughput & SSD capacity"
+echo "    - FSx for ONTAP provisioned throughput & SSD capacity"
 echo "    - Flash Cache availability and working set size"
 echo "    - EC2 instance type network bandwidth"
 echo "    - iSCSI session count and multipath configuration"
