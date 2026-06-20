@@ -65,7 +65,7 @@ Resources:
         - Key: Name
           Value: shift-toolkit-poc-vpc
         - Key: Project
-          Value: shift-toolkit-vmware-to-ec2
+          Value: vmware-migration-ec2-ontap
 
   # ---------- Subnets ----------
   PrivateSubnet1:
@@ -187,7 +187,7 @@ Resources:
         - Key: Name
           Value: shift-toolkit-poc-fsxn
         - Key: Project
-          Value: shift-toolkit-vmware-to-ec2
+          Value: vmware-migration-ec2-ontap
 
   # ---------- EC2 Instance (Linux target) ----------
   Ec2LinuxTarget:
@@ -209,7 +209,7 @@ Resources:
         - Key: Name
           Value: shift-toolkit-poc-linux-target
         - Key: Project
-          Value: shift-toolkit-vmware-to-ec2
+          Value: vmware-migration-ec2-ontap
         - Key: Role
           Value: migration-target
 

@@ -1,4 +1,4 @@
-title = "shift-toolkit-vmware-to-ec2 gitleaks config"
+title = "vmware-migration-ec2-ontap gitleaks config"
 
 [extend]
 useDefault = true

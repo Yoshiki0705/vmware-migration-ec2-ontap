@@ -6,11 +6,11 @@
 
 # Shift Toolkit: VMware to EC2 / FSx for ONTAP 検証
 
-> NetApp Shift Toolkit Early Preview — VMware ESXi から Amazon EC2 + FSx for ONTAP への移行検証
+> VMware ESXi → Amazon EC2 + FSx for ONTAP 移行パス検証（NetApp Shift Toolkit / AWS Transform）
 
 ## 概要
 
-このリポジトリは、NetApp Shift Toolkit の Early Preview 機能を使用して、VMware ESXi ワークロードを Amazon EC2 + Amazon FSx for NetApp ONTAP に移行する検証プロジェクトです。
+このリポジトリは、VMware ESXi ワークロードを Amazon EC2 + Amazon FSx for NetApp ONTAP に移行する複数パス（NetApp Shift Toolkit / AWS Transform）の検証プロジェクトです。
 
 ### ポジショニング
 
@@ -89,8 +89,8 @@ verification/
 
 ```bash
 # リポジトリクローン
-git clone https://github.com/Yoshiki0705/shift-toolkit-vmware-to-ec2.git
-cd shift-toolkit-vmware-to-ec2
+git clone https://github.com/Yoshiki0705/vmware-migration-ec2-ontap.git
+cd vmware-migration-ec2-ontap
 
 # Git hooks 設定
 git config core.hooksPath .githooks
@@ -148,11 +148,11 @@ MIT
 
 # Shift Toolkit: VMware to EC2 / FSx for ONTAP Verification
 
-> NetApp Shift Toolkit Early Preview — Migrating VMware ESXi workloads to Amazon EC2 + FSx for ONTAP
+> VMware ESXi → Amazon EC2 + FSx for ONTAP migration path verification (NetApp Shift Toolkit / AWS Transform)
 
 ## Overview
 
-This repository is a verification project for migrating VMware ESXi workloads to Amazon EC2 + Amazon FSx for NetApp ONTAP using the NetApp Shift Toolkit Early Preview.
+This repository is a verification project for migrating VMware ESXi workloads to Amazon EC2 + Amazon FSx for NetApp ONTAP, evaluating multiple migration paths (NetApp Shift Toolkit / AWS Transform).
 
 ### Positioning
 
@@ -231,8 +231,8 @@ verification/
 
 ```bash
 # Clone repository
-git clone https://github.com/Yoshiki0705/shift-toolkit-vmware-to-ec2.git
-cd shift-toolkit-vmware-to-ec2
+git clone https://github.com/Yoshiki0705/vmware-migration-ec2-ontap.git
+cd vmware-migration-ec2-ontap
 
 # Set up git hooks
 git config core.hooksPath .githooks

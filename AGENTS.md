@@ -1,10 +1,10 @@
 # AGENTS.md
 
-> NetApp Shift Toolkit Early Preview verification: VMware ESXi to Amazon EC2 + FSx for ONTAP migration
+> VMware ESXi → Amazon EC2 + FSx for ONTAP migration path verification (NetApp Shift Toolkit / AWS Transform)
 
 ## Project Overview
 
-Verification and documentation project for NetApp Shift Toolkit's VMware ESXi → AWS EC2 + FSx for ONTAP migration path. Produces blog articles, automation scripts, and architecture guidance.
+Verification and documentation project evaluating multiple VMware ESXi → AWS EC2 + FSx for ONTAP migration paths (NetApp Shift Toolkit, AWS Transform). Produces blog articles, automation scripts, and architecture guidance.
 
 ## Build & Test Commands
 
