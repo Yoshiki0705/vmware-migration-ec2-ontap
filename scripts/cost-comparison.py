@@ -2,7 +2,7 @@
 """
 EBS vs FSx for ONTAP コスト比較スクリプト
 
-目的: 移行後のストレージコストを EBS のみ構成と EBS + FSxN ハイブリッド構成で比較する。
+目的: 移行後のストレージコストを EBS のみ構成と EBS + FSx for ONTAP ハイブリッド構成で比較する。
 東京リージョン (ap-northeast-1) の料金で計算。
 
 Usage:
@@ -196,13 +196,13 @@ def generate_comparison_report(
     lines.append("")
     lines.append("## 構成比較")
     lines.append("")
-    lines.append("| 項目 | 構成 A: EBS gp3 のみ | 構成 B: EBS + FSxN | 構成 C: EBS io2 (高IOPS) |")
+    lines.append("| 項目 | 構成 A: EBS gp3 のみ | 構成 B: EBS + FSx for ONTAP | 構成 C: EBS io2 (高IOPS) |")
     lines.append("|------|---------------------|-------------------|------------------------|")
     lines.append("| OS ディスク | EBS gp3 50GB | EBS gp3 50GB | EBS gp3 50GB |")
     lines.append(
-        f"| データディスク | EBS gp3 {data_size_gb}GB | FSxN iSCSI {data_size_gb}GB | EBS io2 {data_size_gb}GB |"
+        f"| データディスク | EBS gp3 {data_size_gb}GB | FSx for ONTAP iSCSI {data_size_gb}GB | EBS io2 {data_size_gb}GB |"
     )
-    lines.append(f"| IOPS | {iops} | FSxN (NVMe cache) | {iops} |")
+    lines.append(f"| IOPS | {iops} | FSx for ONTAP (NVMe cache) | {iops} |")
     lines.append("| Snapshot | EBS Snapshot | ONTAP Snapshot (即時) | EBS Snapshot |")
     lines.append("| Clone | 不可 | FlexClone (即時) | 不可 |")
     lines.append("| Replication | EBS 間コピー | SnapMirror (効率的) | EBS 間コピー |")
@@ -221,11 +221,11 @@ def generate_comparison_report(
     lines.append("")
     lines.append("### 構成 B: EBS (OS) + FSx for ONTAP (Data)")
     lines.append(f"- OS ディスク (EBS gp3): ${os_disk_cost:.2f}")
-    lines.append(f"- FSxN SSD ({fsxn['ssd_gb']} GB): ${fsxn['cost_ssd']:.2f}")
+    lines.append(f"- FSx for ONTAP SSD ({fsxn['ssd_gb']} GB): ${fsxn['cost_ssd']:.2f}")
     lines.append(
-        f"- FSxN 容量プール ({fsxn['capacity_pool_gb']} GB): ${fsxn['cost_capacity_pool']:.2f}"
+        f"- FSx for ONTAP 容量プール ({fsxn['capacity_pool_gb']} GB): ${fsxn['cost_capacity_pool']:.2f}"
     )
-    lines.append(f"- FSxN スループット ({throughput_mbps} MB/s): ${fsxn['cost_throughput']:.2f}")
+    lines.append(f"- FSx for ONTAP スループット ({throughput_mbps} MB/s): ${fsxn['cost_throughput']:.2f}")
     lines.append(f"- **合計: ${os_disk_cost + fsxn['total_monthly_usd']:.2f}/月**")
     lines.append(f"- (Storage Efficiency により物理容量 {fsxn['physical_data_gb']} GB)")
     lines.append("")
@@ -244,22 +244,22 @@ def generate_comparison_report(
     lines.append("|------|------|------|-----------|")
     lines.append(f"| A: EBS gp3 のみ | ${total_a:.2f} | ${total_a * 12:.2f} | — |")
     lines.append(
-        f"| B: EBS + FSxN | ${total_b:.2f} | ${total_b * 12:.2f} | {((total_b / total_a) - 1) * 100:+.1f}% |"
+        f"| B: EBS + FSx for ONTAP | ${total_b:.2f} | ${total_b * 12:.2f} | {((total_b / total_a) - 1) * 100:+.1f}% |"
     )
     lines.append(
         f"| C: EBS io2 | ${total_c:.2f} | ${total_c * 12:.2f} | {((total_c / total_a) - 1) * 100:+.1f}% |"
     )
     lines.append("")
-    lines.append("## FSxN が有利になるポイント")
+    lines.append("## FSx for ONTAP が有利になるポイント")
     lines.append("")
-    lines.append("FSxN の月額コストが EBS より高い場合でも、以下の機能価値を考慮:")
+    lines.append("FSx for ONTAP の月額コストが EBS より高い場合でも、以下の機能価値を考慮:")
     lines.append("- **ONTAP Snapshot**: 数秒で取得。EBS Snapshot は非同期でコピー時間が必要")
     lines.append("- **FlexClone**: データコピーなしの即時クローン。テスト環境の即時作成")
     lines.append("- **SnapMirror**: 効率的なブロックレプリケーション。DR コスト削減")
     lines.append("- **Storage Efficiency**: 実効容量を削減。データが増えるほど効果大")
     lines.append("- **VM レベル I/O 制限なし**: EBS は EC2 インスタンスタイプで I/O 上限あり")
     lines.append("")
-    lines.append("> 結論: 純粋なストレージ容量コストだけでは FSxN の価値は測れない。")
+    lines.append("> 結論: 純粋なストレージ容量コストだけでは FSx for ONTAP の価値は測れない。")
     lines.append(
         "> 運用効率（Snapshot/Clone/DR）+ 実効容量削減 + I/O 柔軟性を含めた TCO で判断すべき。"
     )
@@ -280,7 +280,7 @@ def generate_comparison_report(
 def main():
     parser = argparse.ArgumentParser(description="EBS vs FSx for ONTAP コスト比較")
     parser.add_argument("--data-size", type=float, default=500, help="データサイズ (GB)")
-    parser.add_argument("--throughput", type=int, default=512, help="FSxN スループット (MB/s)")
+    parser.add_argument("--throughput", type=int, default=512, help="FSx for ONTAP スループット (MB/s)")
     parser.add_argument(
         "--efficiency",
         type=float,

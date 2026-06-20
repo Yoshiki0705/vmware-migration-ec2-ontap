@@ -21,28 +21,28 @@ graph LR
         subgraph VPC["VPC"]
             EC2["EC2 Instance<br/>(Nitro/m5)"]
             EBS["EBS gp3<br/>(OS Disk)"]
-            FSxN["FSx for ONTAP<br/>(iSCSI LUN)"]
+            FSx for ONTAP["FSx for ONTAP<br/>(iSCSI LUN)"]
         end
         EC2 --> EBS
-        EC2 -->|"iSCSI<br/>Multipath"| FSxN
+        EC2 -->|"iSCSI<br/>Multipath"| FSx for ONTAP
     end
 
-    ONTAP -->|"SnapMirror"| FSxN
-    ShiftTK -->|"FlexClone<br/>Disk Conversion"| FSxN
+    ONTAP -->|"SnapMirror"| FSx for ONTAP
+    ShiftTK -->|"FlexClone<br/>Disk Conversion"| FSx for ONTAP
     VM_SRC -.->|"VM Import/Export<br/>(OS Disk)"| EBS
 
     style ShiftTK fill:#0067C5,color:#fff
-    style FSxN fill:#1D428A,color:#fff
+    style FSx for ONTAP fill:#1D428A,color:#fff
     style ONTAP fill:#1D428A,color:#fff
 ```
 
-## FSxN iSCSI Multipath 構成
+## FSx for ONTAP iSCSI Multipath 構成
 
 ```mermaid
 graph TB
     EC2["EC2 Instance"]
 
-    subgraph FSxN_MultiAZ["FSx for ONTAP (Multi-AZ)"]
+    subgraph FSx for ONTAP_MultiAZ["FSx for ONTAP (Multi-AZ)"]
         LIF1["iSCSI LIF<br/>(Preferred AZ)"]
         LIF2["iSCSI LIF<br/>(Standby AZ)"]
         LUN["LUN<br/>/vol/data_vol01/lun01"]
@@ -69,13 +69,13 @@ graph TD
     VMware --> ROSA
 
     subgraph Phase1["Phase 1: リホスト"]
-        EC2_FSxN["EC2 + FSx for ONTAP<br/>(iSCSI)"]
+        EC2_FSx for ONTAP["EC2 + FSx for ONTAP<br/>(iSCSI)"]
     end
 
     subgraph Phase2["Phase 2: リプラットフォーム"]
         ECS["ECS / EKS<br/>(EC2 mode)"]
-        ECS_FSxN["+ FSxN (NFS/iSCSI)"]
-        ECS --> ECS_FSxN
+        ECS_FSx for ONTAP["+ FSx for ONTAP (NFS/iSCSI)"]
+        ECS --> ECS_FSx for ONTAP
     end
 
     subgraph Phase3["Phase 3: リファクタ"]
@@ -89,7 +89,7 @@ graph TD
 
     EVS["Amazon EVS<br/>(VMware 継続)"]
     NC2["NC2 + ONTAP<br/>(Nutanix)"]
-    ROSA["ROSA + FSxN<br/>(OpenShift)"]
+    ROSA["ROSA + FSx for ONTAP<br/>(OpenShift)"]
 
     style Phase1 fill:#e3f2fd
     style Phase2 fill:#f3e5f5
@@ -103,13 +103,13 @@ graph TD
 flowchart TD
     Start["VMware → EC2 移行を検討"]
     Q1{"ONTAP NFS<br/>データストア<br/>使用中?"}
-    Q2{"FSxN に<br/>データ配置<br/>したい?"}
+    Q2{"FSx for ONTAP に<br/>データ配置<br/>したい?"}
     Q3{"移行規模は?"}
 
     MGN["AWS MGN<br/>(標準・無償)"]
     CMC["Cirrus Migrate Cloud<br/>(有償・大規模向け)"]
     Shift["Shift Toolkit<br/>(Early Preview・無償)"]
-    BlueXP["BlueXP Migration Advisor<br/>(計画ツール)"]
+    BlueXP["BlueXP Migration Advisor<br/>(計画ツール)"] <!-- allow:naming -->
 
     Start --> Q1
     Q1 -->|No| MGN
@@ -119,7 +119,7 @@ flowchart TD
     Q3 -->|"100+ VM"| CMC
     Q3 -->|"中小規模/PoC"| Shift
 
-    Start -.->|"計画のみ"| BlueXP
+    Start -.->|"計画のみ"| BlueXP <!-- allow:naming -->
 
     style Shift fill:#0067C5,color:#fff
     style MGN fill:#FF9900,color:#000

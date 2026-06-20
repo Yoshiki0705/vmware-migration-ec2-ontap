@@ -76,13 +76,13 @@ VMware VM を EC2 インスタンスとして移行する最もストレート�
 
 EC2 にリホストした後の次のステップとして、ワークロードの特性に応じたモダナイゼーションが可能です。
 
-| ターゲット | 適するワークロード | FSxN 連携 |
+| ターゲット | 適するワークロード | FSx for ONTAP 連携 |
 |-----------|------------------|-----------|
 | **ECS / EKS (EC2 mode)** | ステートフル・コンテナ（DB、ミドルウェア） | ✅ iSCSI / NFS マウント可能 |
 | **ECS / EKS (Fargate)** | ステートレス・マイクロサービス | △ EFS 経由のみ（iSCSI 不可） |
 | **AWS Lambda** | イベント駆動・短時間処理 | △ EFS マウント可能、iSCSI 不可 |
 | **AWS Batch** | バッチ処理・HPC | ✅ EC2 mode なら iSCSI 可能 |
-| **Amazon WorkSpaces** | VDI（仮想デスクトップ） | ✅ FSxN ファイル共有 |
+| **Amazon WorkSpaces** | VDI（仮想デスクトップ） | ✅ FSx for ONTAP ファイル共有 |
 
 **重要**: VM をそのままコンテナ化するわけではありません。EC2 リホスト → アプリケーションのコンテナ化 → Fargate/Lambda への段階的移行というジャーニーになります。
 
@@ -141,7 +141,7 @@ Nutanix CEO Rajiv Ramaswami 氏は「外部ストレージプラットフォー�
 
 この図が示すのは、**ONTAP はハイパーバイザーやクラウドの選択に依存しないデータプラットフォーム**だということです。VMware から EC2 へ、あるいは Nutanix へ、さらには ROSA へとコンピュート層を変えても、データ層の ONTAP は一貫して利用でき、SnapMirror でデータを移動・保護できます。
 
-Shift Toolkit による VMware → EC2/FSxN 移行は、このエコシステムの中の**1つの移行パス**であり、将来的に NC2 + ONTAP や ROSA + FSxN へのワークロード再配置が必要になった場合にも、データ層の互換性が保たれます。
+Shift Toolkit による VMware → EC2/FSx for ONTAP 移行は、このエコシステムの中の**1つの移行パス**であり、将来的に NC2 + ONTAP や ROSA + FSx for ONTAP へのワークロード再配置が必要になった場合にも、データ層の互換性が保たれます。
 
 ### 本検証の位置づけ
 
@@ -154,11 +154,11 @@ VMware ESXi (現在地)
     │
     ├─ Phase 2: リプラットフォーム（将来）
     │   EC2 上のアプリをコンテナ化
-    │   → ECS/EKS + FSxN (NFS/iSCSI)
+    │   → ECS/EKS + FSx for ONTAP (NFS/iSCSI)
     │
     └─ Phase 3: リファクタ（将来）
         ステートレス化 → Fargate / Lambda
-        データ層は FSxN / S3 / DynamoDB に分離
+        データ層は FSx for ONTAP / S3 / DynamoDB に分離
 ```
 
 本検証は **Phase 1（リホスト）** に集中しますが、EC2 + FSx for ONTAP の構成は Phase 2 以降への移行パスを閉じない設計になっています。FSx for ONTAP は EC2 だけでなく ECS/EKS からも NFS/iSCSI でアクセスできるため、コンテナ化した後もデータ層をそのまま維持できます。
@@ -171,9 +171,9 @@ VMware ESXi (現在地)
 
 EC2 + FSx for ONTAP の構成は、単なるリホスト先ではなく、**将来のモダナイゼーションを閉じない設計**です。
 
-- **今（Phase 1）**: VM を EC2 にリホスト。データディスクは FSxN iSCSI
-- **次（Phase 2）**: アプリをコンテナ化。ECS/EKS から FSxN に NFS/iSCSI でアクセス継続
-- **将来（Phase 3）**: ステートレス化した部分は Fargate/Lambda へ。データ層の FSxN はそのまま
+- **今（Phase 1）**: VM を EC2 にリホスト。データディスクは FSx for ONTAP iSCSI
+- **次（Phase 2）**: アプリをコンテナ化。ECS/EKS から FSx for ONTAP に NFS/iSCSI でアクセス継続
+- **将来（Phase 3）**: ステートレス化した部分は Fargate/Lambda へ。データ層の FSx for ONTAP はそのまま
 
 FSx for ONTAP がマルチプロトコル（NFS/SMB/iSCSI）でアクセスできることが、この段階的移行を支えます。EC2 の iSCSI LUN として使っていたボリュームを、後から EKS Pod に NFS マウントすることも可能です。
 
@@ -197,7 +197,7 @@ FSx for ONTAP を単なる「大容量ストレージ」として見ると、EBS
 │      Amazon EC2 (Nitro)       │
 │  ┌─────────┐  ┌───────────┐  │
 │  │ OS: EBS │  │ Data: iSCSI│ │
-│  │  (gp3)  │  │  (FSxN)   │  │
+│  │  (gp3)  │  │  (FSx for ONTAP)   │  │
 │  └─────────┘  └─────┬─────┘  │
 └──────────────────────┼────────┘
                        │
@@ -212,8 +212,8 @@ FSx for ONTAP を単なる「大容量ストレージ」として見ると、EBS
 
 この構成の利点:
 
-- **EC2 の VM レベル I/O 制限を回避**: FSx ONTAP はネットワーク帯域のみが制約。小型インスタンスでも高 IOPS を実現可能
-- **ストレージとコンピュートの独立スケーリング**: EC2 を止めずに FSxN の容量/スループットを変更可能
+- **EC2 の VM レベル I/O 制限を回避**: FSx for ONTAP はネットワーク帯域のみが制約。小型インスタンスでも高 IOPS を実現可能
+- **ストレージとコンピュートの独立スケーリング**: EC2 を止めずに FSx for ONTAP の容量/スループットを変更可能
 - **ONTAP 運用モデルの継続**: オンプレと同じ CLI/API でスナップショット、クローン、レプリケーションを操作
 
 ## 移行ツールの選び方
@@ -225,7 +225,7 @@ FSx for ONTAP を単なる「大容量ストレージ」として見ると、EBS
 | ONTAP NFS データストア使用中 + 中小規模 | **NetApp Shift Toolkit** | FlexClone で秒単位のディスク変換。無償 |
 | ONTAP 使用中 + 大規模 (100+ VM) | **Cirrus Migrate Cloud** | YAML 自動化、ゼロダウンタイムに近い移行 |
 | ONTAP 未使用 or EBS のみ | **AWS MGN** | AWS 標準。幅広い OS 対応。無償 |
-| 移行計画・サイジングのみ | **BlueXP Migration Advisor** | RVTools 連携、コスト比較、IaC 出力 |
+| 移行計画・サイジングのみ | **BlueXP Migration Advisor** | RVTools 連携、コスト比較、IaC 出力 | <!-- allow:naming -->
 
 ### NetApp Shift Toolkit の位置づけ
 
@@ -241,7 +241,7 @@ Shift Toolkit は、ONTAP ユーザーが既存の NFS データストア上の 
 
 1. **環境構築**: VPC + FSx for ONTAP + VPN の設計と構築
 2. **移行実行**: Linux / Windows VM の EC2 への移行
-3. **パフォーマンス**: FSx ONTAP iSCSI の IOPS / スループット実測
+3. **パフォーマンス**: FSx for ONTAP iSCSI の IOPS / スループット実測
 4. **運用継続性**: 移行後の Snapshot / Clone / SnapMirror 動作確認
 5. **コスト比較**: EBS のみ構成との TCO 比較
 
@@ -262,8 +262,8 @@ Shift Toolkit は、ONTAP ユーザーが既存の NFS データストア上の 
 - [AWS Transform for VMware](https://aws.amazon.com/transform/vmware/)
 - [AWS for VMware Partner Offerings (ROSA, NC2)](https://aws.amazon.com/vmware/partner-offerings/)
 - [NetApp Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-overview.html)
-- [AWS Storage Blog: Seamless migration from VMware to FSx ONTAP and EC2](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
-- [AWS Storage Blog: BlueXP Migration Advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/)
+- [AWS Storage Blog: Seamless migration from VMware to FSx for ONTAP and EC2](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
+- [AWS Storage Blog: BlueXP Migration Advisor](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/) <!-- allow:naming -->
 - [Amazon FSx for NetApp ONTAP](https://aws.amazon.com/fsx/netapp-ontap/)
 - [Amazon Elastic VMware Service (EVS)](https://aws.amazon.com/evs/)
 - [Red Hat OpenShift Service on AWS (ROSA)](https://aws.amazon.com/rosa/)

@@ -175,7 +175,7 @@ Shift Toolkit が GA でサポートするターゲット（Hyper-V, OpenShift, 
 
 1. Shift Toolkit がデータディスク VMDK を FlexClone で変換
 2. SnapMirror で変換済みデータを FSx for ONTAP に転送
-3. EC2 インスタンスから FSx ONTAP の iSCSI LUN としてマウント
+3. EC2 インスタンスから FSx for ONTAP の iSCSI LUN としてマウント
 
 > ⚠️ Early Preview の具体的なワークフローは NetApp からのドキュメント公開後に更新予定。OS ディスクのブート方式（AMI 化）は別途確認中です。
 
@@ -185,7 +185,7 @@ Shift Toolkit が GA でサポートするターゲット（Hyper-V, OpenShift, 
 - データを物理的に動かさないため、ディスクサイズに依存しない変換速度を実現
 - 前提: ONTAP NFS データストアが必須
 - 計画停止ウィンドウは VM の停止/起動時間程度に抑えられる
-- EC2/FSxN 対応は Early Preview。検証で具体的なワークフローを確認予定
+- EC2/FSx for ONTAP 対応は Early Preview。検証で具体的なワークフローを確認予定
 
 次回は、検証環境の構築（VPC + FSx for ONTAP + VPN）を CloudFormation テンプレートで解説します。
 

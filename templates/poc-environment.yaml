@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   Shift Toolkit PoC Environment - VPC + FSx for ONTAP + EC2 Target Instances
-  For VMware ESXi to EC2/FSxN migration verification.
+  For VMware ESXi to EC2/FSx for ONTAP migration verification.
 
 # ==============================================================================
 # Parameters
@@ -15,12 +15,12 @@ Parameters:
   PrivateSubnet1Cidr:
     Type: String
     Default: '10.0.1.0/24'
-    Description: Private subnet 1 (AZ-a) for FSxN preferred
+    Description: Private subnet 1 (AZ-a) for FSx for ONTAP preferred
 
   PrivateSubnet2Cidr:
     Type: String
     Default: '10.0.2.0/24'
-    Description: Private subnet 2 (AZ-c) for FSxN standby
+    Description: Private subnet 2 (AZ-c) for FSx for ONTAP standby
 
   FsxnStorageCapacity:
     Type: Number
@@ -38,7 +38,7 @@ Parameters:
     Type: String
     Default: MULTI_AZ_1
     AllowedValues: [MULTI_AZ_1, SINGLE_AZ_1]
-    Description: FSxN deployment type
+    Description: FSx for ONTAP deployment type
 
   Ec2KeyPairName:
     Type: AWS::EC2::KeyPair::KeyName
@@ -222,11 +222,11 @@ Outputs:
     Value: !Ref Vpc
 
   PrivateSubnet1Id:
-    Description: Private Subnet 1 ID (FSxN preferred)
+    Description: Private Subnet 1 ID (FSx for ONTAP preferred)
     Value: !Ref PrivateSubnet1
 
   PrivateSubnet2Id:
-    Description: Private Subnet 2 ID (FSxN standby)
+    Description: Private Subnet 2 ID (FSx for ONTAP standby)
     Value: !Ref PrivateSubnet2
 
   FsxnFileSystemId:
@@ -234,7 +234,7 @@ Outputs:
     Value: !Ref FsxnFileSystem
 
   FsxnSecurityGroupId:
-    Description: FSxN Security Group ID
+    Description: FSx for ONTAP Security Group ID
     Value: !Ref FsxnSecurityGroup
 
   Ec2SecurityGroupId:

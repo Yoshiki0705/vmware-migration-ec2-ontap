@@ -1,4 +1,4 @@
-# FSx for ONTAP iSCSI 接続手順書（EC2 Linux → FSxN Multipath）
+# FSx for ONTAP iSCSI 接続手順書（EC2 Linux → FSx for ONTAP Multipath）
 
 **目的**: EC2 インスタンスから FSx for ONTAP の iSCSI LUN にマルチパスで接続する手順。
 移行後のデータディスク接続で使用する。
@@ -11,7 +11,7 @@
 
 - FSx for ONTAP ファイルシステムが作成済み
 - SVM (Storage Virtual Machine) が作成済み
-- EC2 インスタンスが FSxN と同一 VPC 内（または VPC ピアリング済み）
+- EC2 インスタンスが FSx for ONTAP と同一 VPC 内（または VPC ピアリング済み）
 - Security Group で iSCSI (TCP 3260) が許可済み
 - `fsxadmin` 認証情報を保有
 
@@ -33,7 +33,7 @@ sudo yum install -y iscsi-initiator-utils device-mapper-multipath
 # multipath デーモン設定を有効化
 sudo mpathconf --enable --with_multipathd y
 
-# multipath.conf の推奨設定（FSxN 向け）
+# multipath.conf の推奨設定（FSx for ONTAP 向け）
 sudo tee /etc/multipath.conf << 'EOF'
 defaults {
     user_friendly_names yes
@@ -75,12 +75,12 @@ cat /etc/iscsi/initiatorname.iscsi
 # 出力例: InitiatorName=iqn.1994-05.com.redhat:ec2-instance-01
 ```
 
-## Step 4: FSxN 側で LUN + igroup を構成
+## Step 4: FSx for ONTAP 側で LUN + igroup を構成
 
-FSxN の管理エンドポイントに SSH 接続して ONTAP CLI で設定:
+FSx for ONTAP の管理エンドポイントに SSH 接続して ONTAP CLI で設定:
 
 ```bash
-# FSxN 管理エンドポイントに接続
+# FSx for ONTAP 管理エンドポイントに接続
 ssh fsxadmin@<management-endpoint-ip>
 ```
 
@@ -178,7 +178,7 @@ echo "/dev/mapper/3600a0980xxxxx /mnt/data xfs defaults,_netdev,nofail 0 0" | su
 # 現在のアクティブパスを確認
 sudo multipath -ll | grep -A2 "status="
 
-# フェイルオーバーテスト（FSxN Console からファイルオーバーをトリガー）
+# フェイルオーバーテスト（FSx for ONTAP Console からファイルオーバーをトリガー）
 # → multipathd が自動的に standby パスに切り替え
 # → I/O が一時的にキューイングされ、数秒以内に再開
 
