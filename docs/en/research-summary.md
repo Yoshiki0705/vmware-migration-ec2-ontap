@@ -1,13 +1,13 @@
-# NetApp Shift Toolkit — VMware ESXi to EC2 / FSx for ONTAP: Research Summary
+# VMware ESXi to EC2 / FSx for ONTAP: Research Summary
 
-**Date**: 2026-06-03
+**Date**: 2026-06-03 (updated 2026-06-21)
 **Status**: Research phase (pre-verification)
 
 ---
 
 ## Executive Summary
 
-This project verifies the NetApp Shift Toolkit Early Preview for migrating VMware ESXi workloads to Amazon EC2 with data disks on Amazon FSx for NetApp ONTAP.
+This project verifies multiple migration paths from VMware ESXi workloads to Amazon EC2 with data disks on Amazon FSx for NetApp ONTAP — specifically **NetApp Shift Toolkit** (Early Preview) and **AWS Transform** (Public Preview, FSx for ONTAP destination).
 
 The verification focuses not just on "migrating from VMware to AWS" but on confirming whether existing ONTAP operational models (Snapshot, FlexClone, SnapMirror, Storage Efficiency) can be preserved while transitioning to cloud-native operations on EC2 + FSx for ONTAP.
 

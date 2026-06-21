@@ -4,9 +4,9 @@
 
 # 日本語
 
-# Shift Toolkit: VMware to EC2 / FSx for ONTAP 検証
+# VMware to EC2 + FSx for ONTAP 移行パス検証
 
-> VMware ESXi → Amazon EC2 + FSx for ONTAP 移行パス検証（NetApp Shift Toolkit / AWS Transform）
+> NetApp Shift Toolkit (Early Preview) と AWS Transform (Public Preview) による VMware ESXi → Amazon EC2 + Amazon FSx for NetApp ONTAP 移行の実機検証
 
 ## 概要
 
@@ -24,11 +24,21 @@ VMware ESXi                        Amazon EC2 (Nitro)
   └── VM (VMDK)                      ├── Boot: EBS gp3
        └── on ONTAP NFS              └── Data: FSx for ONTAP (iSCSI LUN)
 
-        ┌─── Shift Toolkit ────────────────────┐
-        │  1. FlexClone でデータディスク変換     │
-        │  2. SnapMirror で FSx for ONTAP へ転送          │
-        │  3. EC2 起動 + iSCSI アタッチ          │
-        └──────────────────────────────────────┘
+移行パス A: NetApp Shift Toolkit (Early Preview)
+┌──────────────────────────────────────────────────┐
+│ 1. FlexClone で VMDK → iSCSI LUN 変換（秒〜分）   │
+│ 2. SnapMirror でオンプレ ONTAP → FSx for ONTAP    │
+│ 3. OS ディスク → EBS snapshot → AMI               │
+│ 4. EC2 起動 + FSx for ONTAP iSCSI アタッチ        │
+└──────────────────────────────────────────────────┘
+
+移行パス B: AWS Transform (Public Preview)
+┌──────────────────────────────────────────────────┐
+│ 1. Discovery (RVTools / OVA / NetApp DII)         │
+│ 2. AI ベースのウェーブ計画                         │
+│ 3. MGN レプリケーション（継続同期）                │
+│ 4. カットオーバー: OS → EBS / Data → FSx for ONTAP│
+└──────────────────────────────────────────────────┘
 ```
 
 ### 3者にとっての価値
@@ -55,9 +65,10 @@ VMware ESXi                        Amazon EC2 (Nitro)
 |-------|------|------|
 | Phase 0 | 調査・計画策定 | ✅ 完了 |
 | Phase 1 | AWS 環境準備（VPC, FSx for ONTAP, EC2） | 📋 計画済 |
-| Phase 2 | 移行テスト実行 | ⏳ NetApp Q&A 待ち |
-| Phase 3 | 検証・ベンチマーク | ⏳ 未着手 |
-| Phase 4 | ドキュメント・記事化 | ⏳ 未着手 |
+| Phase 2a | AWS Transform 検証（Discovery → 計画 → 移行） | 📋 Spec 作成済 |
+| Phase 2b | Shift Toolkit 検証（FlexClone 変換 → EC2 起動） | ⏳ NetApp Q&A 待ち |
+| Phase 3 | 検証・ベンチマーク（パフォーマンス / コスト / ONTAP 機能） | ⏳ 未着手 |
+| Phase 4 | ドキュメント・ブログ記事化 | ⏳ 未着手 |
 
 ## 検証の成功指標
 
@@ -98,10 +109,10 @@ git config core.hooksPath .githooks
 # Python 依存関係
 pip install -r requirements.txt
 
-# PoC 環境デプロイ（Phase 1）
+# PoC 環境デプロイ（Phase 1 — VPC + FSx for ONTAP）
 aws cloudformation deploy \
   --template-file templates/poc-environment.yaml \
-  --stack-name shift-toolkit-poc \
+  --stack-name vmware-migration-poc \
   --parameter-overrides \
     VpcCidr=10.0.0.0/16 \
     FsxnThroughput=512 \
@@ -113,30 +124,44 @@ aws cloudformation deploy \
 
 ### オンプレミス側
 
-- VMware vCenter 7.0.3 以降
-- ONTAP 9.14.1 以降（NFS データストア）
-- NetApp Shift Toolkit（Windows Server 上にインストール）
+- VMware vCenter 7.0.3 以降（ESXi ホスト + NFS データストア）
+- ONTAP 9.14.1 以降
+- NetApp Shift Toolkit（Windows Server 上にインストール — Shift Toolkit 検証の場合）
 - NetApp Support アカウント（Early Preview 有効化用）
 
 ### AWS 側
 
 - AWS アカウント + 適切な IAM 権限
+- AWS Organizations + IAM Identity Center（AWS Transform の前提）
 - VPN or Direct Connect（オンプレ ↔ AWS 間接続）
 - 東京リージョン (ap-northeast-1) 推奨
 
 ## 注意事項
 
-> ⚠️ **Early Preview**: VMware ESXi → AWS EC2 の Shift Toolkit 対応は Early Preview です。
-> 現時点ではデータディスクを FSx for ONTAP に配置する構成が対象です。
-> 仕様・制約・サポート範囲は変更される可能性があります。
-> 利用には NetApp 側での有効化が必要です。
+> ⚠️ **Preview ステータス（2026-06 時点）**:
+>
+> - **Shift Toolkit**: VMware ESXi → AWS EC2 の対応は **Early Preview**。
+>   OS ディスク → EBS + データディスク → FSx for ONTAP の構成。利用には NetApp 側での有効化が必要。
+> - **AWS Transform**: FSx for ONTAP を移行先ストレージとする機能は **Public Preview**。
+>   VMware 移行エージェントは無料。対応リージョン・UI・制約は変更されうる。
+>
+> いずれも仕様・制約・サポート範囲は変更される可能性があります。GA 仕様としては扱わないでください。
 
 ## 参考リンク
 
+### NetApp
+
 - [NetApp Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-overview.html)
 - [Migrate VMs to Amazon EC2 (NetApp)](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/migrate-vms-to-ec2-fsxn-overview.html)
+- [What's New in Shift v8.0](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)
+
+### AWS
+
+- [AWS Transform: VMware to FSx for ONTAP (What's New)](https://aws.amazon.com/jp/about-aws/whats-new/2026/06/aws-transform-vmware-fsx-for-ontap-preview/)
+- [Accelerating VMware migration: AWS Transform](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migration-aws-transforms-new-experience/)
 - [AWS Storage Blog: Seamless VMware Migration](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
 - [Amazon FSx for NetApp ONTAP](https://aws.amazon.com/fsx/netapp-ontap/)
+- [AWS Transform Pricing](https://aws.amazon.com/transform/pricing/)
 
 ## ライセンス
 
@@ -146,9 +171,9 @@ MIT
 
 # English
 
-# Shift Toolkit: VMware to EC2 / FSx for ONTAP Verification
+# VMware to EC2 + FSx for ONTAP Migration Path Verification
 
-> VMware ESXi → Amazon EC2 + FSx for ONTAP migration path verification (NetApp Shift Toolkit / AWS Transform)
+> Hands-on verification of VMware ESXi → Amazon EC2 + Amazon FSx for NetApp ONTAP migration using NetApp Shift Toolkit (Early Preview) and AWS Transform (Public Preview)
 
 ## Overview
 
@@ -166,11 +191,21 @@ VMware ESXi                        Amazon EC2 (Nitro)
   └── VM (VMDK)                      ├── Boot: EBS gp3
        └── on ONTAP NFS              └── Data: FSx for ONTAP (iSCSI LUN)
 
-        ┌─── Shift Toolkit ────────────────────┐
-        │  1. FlexClone data disk conversion    │
-        │  2. SnapMirror transfer to FSx for ONTAP       │
-        │  3. EC2 launch + iSCSI attach         │
-        └──────────────────────────────────────┘
+Path A: NetApp Shift Toolkit (Early Preview)
+┌──────────────────────────────────────────────────┐
+│ 1. FlexClone VMDK → iSCSI LUN conversion (secs)  │
+│ 2. SnapMirror: on-prem ONTAP → FSx for ONTAP     │
+│ 3. OS disk → EBS snapshot → AMI                   │
+│ 4. EC2 launch + FSx for ONTAP iSCSI attach        │
+└──────────────────────────────────────────────────┘
+
+Path B: AWS Transform (Public Preview)
+┌──────────────────────────────────────────────────┐
+│ 1. Discovery (RVTools / OVA / NetApp DII)         │
+│ 2. AI-based wave planning                         │
+│ 3. MGN replication (continuous sync)              │
+│ 4. Cutover: OS → EBS / Data → FSx for ONTAP      │
+└──────────────────────────────────────────────────┘
 ```
 
 ### Value for Three Audiences
@@ -197,9 +232,10 @@ VMware ESXi                        Amazon EC2 (Nitro)
 |-------|-------------|--------|
 | Phase 0 | Research & planning | ✅ Complete |
 | Phase 1 | AWS environment setup (VPC, FSx for ONTAP, EC2) | 📋 Planned |
-| Phase 2 | Migration test execution | ⏳ Awaiting NetApp Q&A |
-| Phase 3 | Validation & benchmarking | ⏳ Not started |
-| Phase 4 | Documentation & articles | ⏳ Not started |
+| Phase 2a | AWS Transform verification (Discovery → Plan → Migrate) | 📋 Spec ready |
+| Phase 2b | Shift Toolkit verification (FlexClone conversion → EC2 launch) | ⏳ Awaiting NetApp Q&A |
+| Phase 3 | Validation & benchmarking (performance / cost / ONTAP features) | ⏳ Not started |
+| Phase 4 | Documentation & blog articles | ⏳ Not started |
 
 ## Success Criteria
 
@@ -240,10 +276,10 @@ git config core.hooksPath .githooks
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Deploy PoC environment (Phase 1)
+# Deploy PoC environment (Phase 1 — VPC + FSx for ONTAP)
 aws cloudformation deploy \
   --template-file templates/poc-environment.yaml \
-  --stack-name shift-toolkit-poc \
+  --stack-name vmware-migration-poc \
   --parameter-overrides \
     VpcCidr=10.0.0.0/16 \
     FsxnThroughput=512 \
@@ -255,30 +291,44 @@ aws cloudformation deploy \
 
 ### On-Premises
 
-- VMware vCenter 7.0.3+
-- ONTAP 9.14.1+ (NFS datastore)
-- NetApp Shift Toolkit (installed on Windows Server)
+- VMware vCenter 7.0.3+ (ESXi hosts + NFS datastore)
+- ONTAP 9.14.1+
+- NetApp Shift Toolkit (installed on Windows Server — for Shift Toolkit verification)
 - NetApp Support account (for Early Preview enablement)
 
 ### AWS
 
 - AWS account with appropriate IAM permissions
+- AWS Organizations + IAM Identity Center (required for AWS Transform)
 - VPN or Direct Connect (on-prem ↔ AWS connectivity)
 - Tokyo Region (ap-northeast-1) recommended
 
 ## Disclaimer
 
-> ⚠️ **Early Preview**: The VMware ESXi → AWS EC2 migration path in Shift Toolkit is an Early Preview feature.
-> Currently targets data disk placement on FSx for ONTAP.
-> Specifications, constraints, and support scope may change.
-> Enablement requires contact with NetApp.
+> ⚠️ **Preview Status (as of 2026-06)**:
+>
+> - **Shift Toolkit**: VMware ESXi → AWS EC2 support is **Early Preview**.
+>   OS disk → EBS + Data disk → FSx for ONTAP configuration. Requires enablement by NetApp.
+> - **AWS Transform**: FSx for ONTAP as migration destination is **Public Preview**.
+>   VMware migration agent is free. Supported regions, UI, and constraints may change.
+>
+> Specifications, constraints, and support scope may change for both tools. Do not treat as GA.
 
 ## References
 
+### NetApp
+
 - [NetApp Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-overview.html)
 - [Migrate VMs to Amazon EC2 (NetApp)](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/migrate-vms-to-ec2-fsxn-overview.html)
+- [What's New in Shift v8.0](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)
+
+### AWS
+
+- [AWS Transform: VMware to FSx for ONTAP (What's New)](https://aws.amazon.com/jp/about-aws/whats-new/2026/06/aws-transform-vmware-fsx-for-ontap-preview/)
+- [Accelerating VMware migration: AWS Transform](https://aws.amazon.com/blogs/migration-and-modernization/accelerating-vmware-migration-aws-transforms-new-experience/)
 - [AWS Storage Blog: Seamless VMware Migration](https://aws.amazon.com/blogs/storage/seamless-migration-from-any-vmware-environment-to-amazon-fsx-for-netapp-ontap-and-amazon-ec2/)
 - [Amazon FSx for NetApp ONTAP](https://aws.amazon.com/fsx/netapp-ontap/)
+- [AWS Transform Pricing](https://aws.amazon.com/transform/pricing/)
 
 ## License
 

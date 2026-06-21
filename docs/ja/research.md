@@ -12,13 +12,14 @@
 
 NetApp Shift Toolkit は、VM を異なるハイパーバイザー間で移行し、仮想ディスク形式の変換を支援するスタンドアロンツールです。NetApp のドキュメントでは、VMware ESXi、Microsoft Hyper-V、Oracle Linux Virtualization Manager、Red Hat OpenShift Virtualization などを対象に、ハイパーバイザーをまたいだ VM 移行を簡素化・高速化する製品として説明されています。[（出典）](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-overview.html)
 
-今回注目している Early Preview は、**VMware ESXi から AWS EC2 への移行において、データディスクを Amazon FSx for NetApp ONTAP 上に配置するアプローチ**です。FSx for ONTAP は、AWS 上でフルマネージドの NetApp ONTAP ファイルシステムを利用できるサービスであり、NFS、SMB、iSCSI といったプロトコル、Snapshot、clone、replication、compression、deduplication などの ONTAP データ管理機能を AWS のマネージドサービスとして利用できます。[（出典）](https://aws.amazon.com/documentation-overview/netapp-ontap/)
+今回注目している Early Preview は、**VMware ESXi から AWS EC2 への移行において、OS ディスクを EBS に変換し、データディスクを Amazon FSx for NetApp ONTAP 上に配置するアプローチ**です。FSx for ONTAP は、AWS 上でフルマネージドの NetApp ONTAP ファイルシステムを利用できるサービスであり、NFS、SMB、iSCSI といったプロトコル、Snapshot、clone、replication、compression、deduplication などの ONTAP データ管理機能を AWS のマネージドサービスとして利用できます。[（出典）](https://aws.amazon.com/documentation-overview/netapp-ontap/)
 
 **この検証のポイント**は、「VMware から AWS へ移行する」ことだけではありません。既存の VMware / ONTAP 運用で培ったストレージ運用モデルをできるだけ活かしながら、Amazon EC2 と FSx for ONTAP を組み合わせ、クラウドネイティブな運用・拡張性・コスト最適化へつなげられるかを確認することにあります。
 
 AWS Storage Blog でも、VMware ワークロードを Amazon EC2 と Amazon FSx for NetApp ONTAP へ移行する動きは、単なるライセンス回避ではなく、AWS のコスト効率、柔軟性、信頼性、セキュリティを活用するインフラモダナイゼーションの機会として説明されています。[（出典）](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/)
 
-> ⚠️ **注意**: VMware ESXi to AWS EC2 の Shift Toolkit 対応は Early Preview の位置づけであり、現時点ではデータディスクを FSx for ONTAP に配置する構成を対象としています。利用には NetApp 側での有効化が必要であり、検証時点の仕様・制約・サポート範囲は変更される可能性があります。
+> ⚠️ **注意**: VMware ESXi to AWS EC2 の Shift Toolkit 対応は Early Preview の位置づけです。
+> **2026-06-19 更新**: Shift Toolkit v8.0 ブログにて、OS ディスクの EBS 変換とデータディスクの FSx for ONTAP 配置の**両方**をカバーすることが確認されました（[出典](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)）。利用には `ng-shift-toolkit-support@netapp.com` への連絡が必要であり、検証時点の仕様・制約・サポート範囲は変更される可能性があります。
 
 ---
 
@@ -139,7 +140,45 @@ Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーに�
 - CentOS/RHEL 5.x/6.x は非サポート
 - Windows Server 2008 は公式非サポート（一部成功報告あり、IP 自動設定不可）
 - KVM へのエンドツーエンド移行は未対応（ディスク変換のみ）
-- EC2 への直接移行は **Early Preview** 段階
+- EC2 への直接移行は **Early Preview** 段階（v8.0 で OS→EBS + Data→FSx for ONTAP の構成が確定）
+
+### 2.8 Shift Toolkit v8.0 新機能（2026-06-19 リリース）
+
+> 出典: [What's New in Shift v8.0](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)
+
+**v7.0 からの追加機能（v7.0 recap）:**
+
+- Proxmox VE エンドツーエンド移行サポート
+- Proxmox 向けディスク変換
+- ONTAP NAS Economy ドライバ対応（OpenShift: qtree サポート）
+- 単一 NFS volume 上の複数 VM 対応（ONTAP NAS ドライバ）
+- FlexGroup サポート（VMDK → RAW 変換のみ、KVM ハイパーバイザー向け）
+
+**v8.0 新機能（すべて Preview）:**
+
+| 機能 | ステータス | 概要 |
+|------|-----------|------|
+| **File-to-LUN Migration** | Preview | FlexVol volume 上のファイルをブロックレベル LUN（iSCSI）に直接変換。OpenShift Virtualization のブロックストレージ移行を高速化 |
+| **EC2 + FSx for ONTAP** | Early Preview | OS ディスクを EBS 形式に変換（Import/Export APIs or Direct Access APIs）、データディスクを FSx for ONTAP に配置。SnapMirror による高速データ転送 |
+| **Shift as Add-On for Trident** | Preview (v26.06) | Trident CSI プロビジョナーとの統合。OpenShift Virtualization でゼロコピーのコールドマイグレーションを実現 |
+
+**EC2 Early Preview 有効化方法:**
+
+- 連絡先: `ng-shift-toolkit-support@netapp.com`
+- ダウンロード: [MySupport Shift Toolkit ページ](https://mysupport.netapp.com/site/tools/tool-eula/netapp-shift-toolkit)
+
+**EC2 移行パスの技術詳細（v8.0 ブログから確定）:**
+
+```text
+移行フロー:
+1. ソース VM（ONTAP NFS データストア上）
+2. SnapMirror でデータを FSx for ONTAP にレプリケーション
+3. OS ディスク:
+   - 方式 A: AWS Import/Export APIs → S3 経由 → EBS snapshot → AMI
+   - 方式 B: Direct Access APIs → EBS snapshot 直接作成 → AMI
+4. データディスク: FSx for ONTAP 上の iSCSI LUN として EC2 にアタッチ
+5. EC2 インスタンス起動（AMI からブート + FSx for ONTAP iSCSI マウント）
+```
 
 ---
 
@@ -170,55 +209,71 @@ NetApp 公式ドキュメントの「Migrate VMs to Amazon EC2」セクション
 
 ### 3.2 Shift Toolkit EC2 Early Preview の位置づけ
 
-今回の Early Preview では、VMware ESXi から AWS EC2 への移行において、**データディスクを Amazon FSx for NetApp ONTAP 上に配置する**アプローチが対象です。これは、VMware ワークロードの移行先をオンプレミスの別ハイパーバイザーだけでなく、AWS 上の Amazon EC2 へ広げる可能性を持つ取り組みです。
+今回の Early Preview では、VMware ESXi から AWS EC2 への移行において、**OS ディスクを EBS 形式に変換し、データディスクを Amazon FSx for NetApp ONTAP 上に配置する**アプローチが対象です。これは、VMware ワークロードの移行先をオンプレミスの別ハイパーバイザーだけでなく、AWS 上の Amazon EC2 へ広げる可能性を持つ取り組みです。
 
-**Early Preview の対象範囲（確認済み）:**
+> 🆕 **2026-06-19 更新（Shift v8.0 ブログで確定）**: EC2 移行パスでは Shift Toolkit 自身が OS ディスクの EBS 化まで担う。「データディスクのみ」ではなく、**OS + Data の両方**をカバーする構成が Early Preview として正式に発表された。
+> [出典: What's New in Shift v8.0](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)
 
-- データディスクの FSx for ONTAP への配置
-- 利用には NetApp 側での有効化が必要
+**Early Preview の確定範囲（v8.0 ブログに基づく）:**
 
-**想定される構成（要検証）:**
+- OS ディスク → **EBS 形式に変換**（2つの方式を提供）
+  - **AWS Import/Export APIs** による import
+  - **Direct Access APIs** による EBS snapshot 直接作成
+- データディスク → FSx for ONTAP（iSCSI LUN）に配置
+- SnapMirror レプリケーションを活用した高速データ転送
+- ONTAP Snapshot / SnapMirror / FlexClone が移行後も利用可能
+- 利用には `ng-shift-toolkit-support@netapp.com` への連絡が必要
 
-- OS ディスク → Amazon EBS（EC2 ブート要件）
-- データディスク → FSx for ONTAP（iSCSI LUN）
-- Shift Toolkit の FlexClone 変換がどこまで自動化されるかは Early Preview の実機確認で明らかにする
-
-**注意**: Early Preview の有効化については、NetApp Shift Toolkit の案内に記載されているサポート窓口へ確認する必要があります。[MySupport の Shift Toolkit ページ](https://mysupport.netapp.com/site/tools/tool-eula/netapp-shift-toolkit)は NetApp Support アカウントでのサインインが必要です。
-
-### 3.2.1 ⚠️ 未解決課題: OS ディスクのブート方式（P0）
-
-EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要があり、VMDK を直接マウントして起動することはできない。Early Preview がデータディスクの FSx for ONTAP 配置のみを対象とする場合、**OS ディスクの EC2 ブート方式は Shift Toolkit 単体ではカバーされない可能性がある**。
-
-**NetApp に確認すべき事項:**
-
-| # | 質問 | 影響度 | 確認先 |
-|---|------|--------|--------|
-| Q1 | Early Preview は OS ディスクの AMI 変換も含むか? | Critical | NetApp Shift Toolkit チーム |
-| Q2 | OS ディスクの移行に別ツール（VM Import/Export, MGN, CMC）の併用が必要か? | Critical | NetApp + 検証者判断 |
-| Q3 | Shift Toolkit が変換した中間フォーマット（RAW/QCOW2）から AMI を作成する手順は提供されるか? | High | NetApp |
-| Q4 | EC2 起動後に必要な OS 修正（Nitro ドライバ、ENA、NVMe 対応）は自動化されるか? | High | NetApp + AWS docs |
-
-**想定されるシナリオ別の対応:**
+**確定した構成:**
 
 ```text
-シナリオ A: Shift Toolkit が OS + Data 両方をカバー
-  → Shift Toolkit 単体で完結。検証はシンプル。
-
-シナリオ B: Shift Toolkit は Data のみ。OS は別途 AMI 化が必要
-  → 組み合わせパターンを検証:
-     B-1: VM Import/Export で OS VMDK → AMI
-     B-2: AWS MGN で OS ディスクレプリケーション → EC2 起動
-     B-3: CMC MigrateOps で OS + Shift Toolkit で Data（ハイブリッド）
-
-シナリオ C: Shift Toolkit が VMDK → RAW 変換し、手動で AMI 化
-  → aws ec2 import-image コマンドでの手順を検証
+OS / ルートディスク  → Amazon EBS (gp3)      ← Shift Toolkit が EBS snapshot を作成
+データディスク       → FSx for ONTAP (iSCSI)  ← SnapMirror + ONTAP 機能を継続
 ```
 
-**この課題が解決するまでの方針:**
+**注意**: Early Preview の有効化については `ng-shift-toolkit-support@netapp.com` に連絡する。[MySupport の Shift Toolkit ページ](https://mysupport.netapp.com/site/tools/tool-eula/netapp-shift-toolkit)は NetApp Support アカウントでのサインインが必要。
 
-- Phase 2（移行テスト）の着手は Q1-Q4 の回答後とする
-- Phase 1（環境準備）は並行して進められる
-- シナリオ B を想定した検証計画をベースラインとして準備する
+### 3.2.1 OS ディスクのブート方式 — ✅ 解決済み（v8.0 ブログで確定）
+
+> 🆕 **2026-06-19 更新**: Shift Toolkit v8.0 ブログにより、本課題は**シナリオ A（Shift Toolkit が OS + Data 両方をカバー）に確定**した。
+
+EC2 インスタンスは Amazon Machine Image (AMI) からブートする必要があり、VMDK を直接マウントして起動することはできない。~~Early Preview がデータディスクの FSx for ONTAP 配置のみを対象とする場合~~ → **v8.0 ブログにより否定**: Shift Toolkit 自身が OS ディスクを EBS 形式に変換する。
+
+**確定した EBS 変換方式（2つ）:**
+
+| 方式 | 概要 | 想定用途 |
+|------|------|---------|
+| AWS Import/Export APIs | VMDK → RAW → S3 → `import-image` → EBS snapshot → AMI | 標準的な変換パス |
+| Direct Access APIs | EBS snapshot を直接作成（S3 経由なし） | 高速化・大容量向け（推定） |
+
+**残存する確認事項（P0 → P1 に格下げ）:**
+
+| # | 質問 | 影響度 | ステータス |
+|---|------|--------|-----------|
+| Q1 | ~~Early Preview は OS ディスクの AMI 変換も含むか?~~ | ~~Critical~~ | ✅ 解決: 含む |
+| Q2 | OS ディスクのみ別ツール併用が必要なケースは? | ~~Critical~~ → Medium | 🔶 Shift がカバーするが非対応 OS の場合は別途確認 |
+| Q3 | EBS snapshot → AMI 作成の詳細手順は? | High | 🔶 2方式の存在は確定、詳細手順は未公開 |
+| Q4 | Nitro/ENA/NVMe ドライバ自動化は? | High | ⬜ 未回答 |
+
+**シナリオ整理（更新）:**
+
+```text
+シナリオ A: Shift Toolkit が OS + Data 両方をカバー  ← ✅ 確定（v8.0 ブログ）
+  → Shift Toolkit 単体で完結。検証はシンプル。
+  → OS ディスクの EBS 変換に 2 方式あり（Import/Export API or Direct Access API）
+
+シナリオ B: （当初想定していたが否定された）
+  → Shift Toolkit はデータのみ、OS は別途… ← v8.0 で否定
+
+シナリオ C: （当初想定していたが否定された）
+  → 手動 AMI 化… ← v8.0 で否定（Shift が直接処理）
+```
+
+**方針変更:**
+
+- ~~Phase 2（移行テスト）の着手は Q1-Q4 の回答後~~ → Q1 解決により Phase 2 着手可能
+- Q4（ドライバ自動化）は実機検証で確認する方針に切り替え
+- Phase 1（環境準備）は並行して継続
 
 ### 3.2.2 移行ツール選択ガイダンス
 
@@ -305,10 +360,10 @@ OS / ルートディスク  → Amazon EBS (gp3)      ← ブート要件（不�
 
 違いは「ルートディスクを誰が EBS 化するか」:
 
-- **Shift Toolkit**: Early Preview がデータディスクの FSx for ONTAP 配置中心の場合、OS ディスクの AMI 化は単体ではカバーされない懸念（3.2.1 シナリオ B で VM Import/Export 等の併用を想定）。
-- **AWS Transform**: コンピュート移行を含むため、OS ディスクの EBS ブート化（AMI 化・Nitro ドライバ注入等）をサービス側で吸収すると考えられる（要確認）。もしそうなら、AWS Transform は本検証の P0 課題に対する「もう一つの解」になりうる。
+- **Shift Toolkit**: v8.0 で OS ディスクの EBS 変換を自身がカバーすることが確定。AWS Import/Export APIs または Direct Access APIs の 2 方式を提供。（[出典: v8.0 ブログ](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)）
+- **AWS Transform**: コンピュート移行を含むため、OS ディスクの EBS ブート化（AMI 化・Nitro ドライバ注入等）をサービス側で吸収すると考えられる（要確認）。
 
-→ ルートボリュームはどちらも **EBS** が基本。Shift Toolkit で別ツール併用が要る部分を、AWS Transform は一気通貫で処理する可能性がある、という整理。
+→ ルートボリュームはどちらも **EBS** が基本。~~Shift Toolkit で別ツール併用が要る部分を~~ v8.0 で Shift 自身が EBS 化をカバーしたため、両ツールとも**単体で OS + Data を完結できる**方向に収束した。
 
 #### 使い分けガイダンス
 
@@ -359,12 +414,12 @@ AWS Transform の料金は「サービス（エージェント）」と「生成
 | A2 | NetApp DII 連携は discovery のみか、移行実行フェーズにも及ぶか? | High |
 | A3 | NetApp として顧客に Shift Toolkit と AWS Transform をどう使い分け案内する想定か（置き換え / 補完 / 並存）? | High |
 
-**B. ルート / OS ディスク（P0 の継続確認）**
+**B. ルート / OS ディスク（✅ P0 解決済み）**
 
-| # | 質問 | 影響度 |
-|---|------|--------|
-| B1 | Shift Toolkit Early Preview は OS ディスクの AMI 化まで含むか、データディスクのみか?（既存 Q1 と統合） | Critical |
-| B2 | 含まない場合、AWS Transform でコンピュート（ルート = EBS）、Shift Toolkit でデータ（FSx for ONTAP）の分担は NetApp 推奨構成として成立するか? | High |
+| # | 質問 | 影響度 | ステータス |
+|---|------|--------|-----------|
+| B1 | ~~Shift Toolkit Early Preview は OS ディスクの AMI 化まで含むか、データディスクのみか?~~ | ~~Critical~~ | ✅ 解決: v8.0 で OS ディスクの EBS 変換を含むことが確定 |
+| B2 | ~~含まない場合~~ AWS Transform と Shift Toolkit の OS/Data 分担は? | ~~High~~ → Low | ✅ 整理済み: Shift 自身が OS→EBS を処理。AWS Transform との分担は「排他」ではなく「選択肢」 |
 
 **C. FSx for ONTAP 移行先としての仕様**
 
@@ -508,7 +563,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 
 | ツール | 提供元 | アプローチ | FSx for ONTAP 対応 | OS ディスク先 | データディスク先 | 特徴 | 適用シナリオ |
 |--------|--------|-----------|-----------|-------------|--------------|------|------------|
-| **Shift Toolkit** | NetApp | ONTAP FlexClone + ディスク変換 | ✅ (データディスク・Early Preview) | EBS (想定) | FSx for ONTAP iSCSI | ONTAP 顧客向け、数秒での変換、無償 | ONTAP NFS データストア利用中の環境 |
+| **Shift Toolkit** | NetApp | ONTAP FlexClone + ディスク変換 | ✅ (OS→EBS + Data→FSx for ONTAP・Early Preview) | EBS (確定: Import/Export API or Direct Access API) | FSx for ONTAP iSCSI | ONTAP 顧客向け、数秒での変換、無償 | ONTAP NFS データストア利用中の環境 |
 | **Cirrus Migrate Cloud (CMC)** | Cirrus Data Solutions | エージェントベース・ブロックレプリケーション | ✅ (iSCSI LUN 自動構成) | EBS | FSx for ONTAP / EBS | YAML ベース自動化 (MigrateOps)、VM 稼働中に移行 | 大規模エンタープライズ移行 |
 | **AWS MGN (Application Migration Service)** | AWS | エージェントベース・継続レプリケーション | ❌ (EBS のみ) | EBS | EBS | AWS 標準ツール、幅広い OS 対応、無償 | 汎用的な Lift & Shift |
 | **BlueXP Workload Factory Migration Advisor** | NetApp/AWS | 計画 + 最適化 + 自動デプロイ | ✅ (計画・ストレージ最適化) | EBS gp3 | FSx for ONTAP iSCSI | RVTools/PowerCLI 連携、コスト比較、IaC 出力 | 移行計画・サイジング | <!-- allow:naming -->
@@ -528,7 +583,8 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 
 - ONTAP NFS データストアが前提（非 ONTAP 環境では使えない）
 - Windows 専用ツール
-- EC2 対応は Early Preview（GA 時期未定）
+- EC2 対応は Early Preview（v8.0 で OS→EBS + Data→FSx for ONTAP が確定。GA 時期未定）
+- EC2 Early Preview 有効化には `ng-shift-toolkit-support@netapp.com` への連絡が必要
 
 ---
 
