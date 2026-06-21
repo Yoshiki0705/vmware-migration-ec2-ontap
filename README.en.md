@@ -22,8 +22,8 @@ VMware ESXi                          Amazon EC2 (Nitro)
 
 Path A: NetApp Shift Toolkit (Early Preview)
 ┌────────────────────────────────────────────────────────┐
-│ 1. FlexClone VMDK → iSCSI LUN conversion (seconds)    │
-│ 2. SnapMirror: on-prem ONTAP → FSx for ONTAP          │
+│ 1. FlexClone VMDK → iSCSI LUN conversion (seconds)     │
+│ 2. SnapMirror: on-prem ONTAP → FSx for ONTAP           │
 │ 3. OS disk → EBS snapshot → AMI                        │
 │ 4. EC2 launch + FSx for ONTAP iSCSI attach             │
 └────────────────────────────────────────────────────────┘
@@ -33,7 +33,7 @@ Path B: AWS Transform (Public Preview)
 │ 1. Discovery (RVTools / OVA / NetApp DII)              │
 │ 2. AI-based wave planning                              │
 │ 3. MGN replication (continuous sync)                   │
-│ 4. Cutover: OS → EBS / Data → FSx for ONTAP           │
+│ 4. Cutover: OS → EBS / Data → FSx for ONTAP            │
 └────────────────────────────────────────────────────────┘
 ```
 

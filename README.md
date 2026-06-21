@@ -22,18 +22,18 @@ VMware ESXi                          Amazon EC2 (Nitro)
 
 移行パス A: NetApp Shift Toolkit (Early Preview)
 ┌────────────────────────────────────────────────────────┐
-│ 1. FlexClone で VMDK → iSCSI LUN 変換（秒〜分）       │
-│ 2. SnapMirror でオンプレ ONTAP → FSx for ONTAP        │
-│ 3. OS ディスク → EBS snapshot → AMI                   │
-│ 4. EC2 起動 + FSx for ONTAP iSCSI アタッチ            │
+│ 1. FlexClone で VMDK → iSCSI LUN 変換（数秒〜1分）        │
+│ 2. SnapMirror 同期: オンプレ ONTAP → FSx for ONTAP       │
+│ 3. OS ディスク → EBS スナップショット → AMI                │
+│ 4. EC2 起動 + FSx for ONTAP iSCSI アタッチ               │
 └────────────────────────────────────────────────────────┘
 
 移行パス B: AWS Transform (Public Preview)
 ┌────────────────────────────────────────────────────────┐
 │ 1. Discovery (RVTools / OVA / NetApp DII)              │
-│ 2. AI ベースのウェーブ計画                             │
-│ 3. MGN レプリケーション（継続同期）                    │
-│ 4. カットオーバー: OS → EBS / Data → FSx for ONTAP    │
+│ 2. AI ベースのウェーブプランニング              　          │
+│ 3. MGN レプリケーション（継続同期）             　          │
+│ 4. カットオーバー:　OS → EBS / Data → FSx for ONTAP  　   │
 └────────────────────────────────────────────────────────┘
 ```
 
