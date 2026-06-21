@@ -151,7 +151,7 @@ aws cloudformation deploy \
 
 - [NetApp Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions/vm-migrate/migrate-overview.html)
 - [Migrate VMs to Amazon EC2 using FSx for ONTAP](https://docs.netapp.com/us-en/netapp-solutions/vmware/migrate-vms-to-ec2-fsxn-deploy.html)
-- [Shift Toolkit Migration Workflow](https://docs.netapp.com/us-en/netapp-solutions/vm-migrate/shift-toolkit-migration.html)
+- [Shift Toolkit Supported Versions](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-supported-versions.html)
 
 ### AWS
 
