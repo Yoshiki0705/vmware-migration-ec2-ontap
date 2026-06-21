@@ -149,9 +149,12 @@ aws cloudformation deploy \
 
 ### NetApp
 
-- [NetApp Shift Toolkit Overview](https://docs.netapp.com/us-en/netapp-solutions/vm-migrate/migrate-overview.html)
-- [Migrate VMs to Amazon EC2 using FSx for ONTAP](https://docs.netapp.com/us-en/netapp-solutions/vmware/migrate-vms-to-ec2-fsxn-deploy.html)
-- [Shift Toolkit Supported Versions](https://docs.netapp.com/us-en/netapp-solutions-virtualization/migration/shift-toolkit-supported-versions.html)
+> ⚠️ `docs.netapp.com` / `community.netapp.com` は一時的にアクセス制限が発生する場合があります。
+> 403 エラーの場合は時間を置いて再試行するか、[NetApp Support Site](https://mysupport.netapp.com/) にログインしてください。
+
+- [NetApp Shift Toolkit (MySupport — ログイン要)](https://mysupport.netapp.com/site/tools/tool-eula/netapp-shift-toolkit)
+- [Migrate VMware to EC2 & iSCSI-based FSx for ONTAP (NetApp Blog)](https://www.netapp.com/blog/aws-fsxn-blg-migrate-vmware-to-amazon-ec2-iscsi-based-fsx-for-ontap/)
+- [Simplify VM migration with Shift Toolkit (NetApp Blog)](https://www.netapp.com/blog/simplify-vm-migration-shift-toolkit/)
 
 ### AWS
 
