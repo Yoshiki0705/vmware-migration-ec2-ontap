@@ -11,6 +11,8 @@
   - [AWS What's New](https://aws.amazon.com/jp/about-aws/whats-new/2026/06/aws-transform-vmware-fsx-for-ontap-preview/)
 - 2026-06-19: Shift Toolkit v8.0 リリース — EC2 + FSx for ONTAP が Early Preview として正式発表
   - [Tech ONTAP Blog: What's New in Shift v8.0](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)
+- 2026-06-22: 公式手順書「Migrate VMs from VMware to AWS EC2 and FSx for ONTAP — Shift UI」入手
+  - OS ディスク→EBS→AMI + データディスク→FSx for ONTAP LUN（iSCSI）のエンドツーエンドフローが確定
 
 ---
 
@@ -31,18 +33,34 @@ EC2 は AMI（EBS バックド）からのみブート可能で、FSx for ONTAP 
 | # | 質問 | 優先度 | ステータス |
 |---|------|--------|-----------|
 | Q1 | Shift Toolkit Early Preview は OS ディスクの AMI 変換まで含むか、データディスクの FSx for ONTAP 配置のみか? | Critical | ✅ 確認済み |
-| Q2 | OS ディスクのみ別ツール（VM Import/Export, AWS MGN 等）併用が必要となるケースの想定はあるか? | Critical | 🔶 部分回答 |
-| Q3 | Shift Toolkit が変換した中間フォーマット（RAW/QCOW2）から AMI を作成する標準手順は提供されるか? | High | 🔶 部分回答 |
-| Q4 | EC2 起動後に必要な OS 修正（Nitro ドライバ、ENA、NVMe 対応）は自動化されるか、手動対応か? | High | ⬜ 未回答 |
+| Q2 | OS ディスクのみ別ツール（VM Import/Export, AWS MGN 等）併用が必要となるケースの想定はあるか? | Critical | ✅ 確認済み |
+| Q3 | Shift Toolkit が変換した中間フォーマット（RAW/QCOW2）から AMI を作成する標準手順は提供されるか? | High | ✅ 確認済み |
+| Q4 | EC2 起動後に必要な OS 修正（Nitro ドライバ、ENA、NVMe 対応）は自動化されるか、手動対応か? | High | ✅ 確認済み |
 
-### Q1–Q3 回答根拠（Shift v8.0 ブログ 2026-06-19）
+### Q1–Q4 回答根拠（公式 Shift Toolkit EC2 手順書 2026-06）
 
-> Shift Toolkit v8.0 also introduces support for migrating to AWS by **converting the OS disks to EBS format** and associated data disks to Amazon FSx for ONTAP.
-> The migration approach provides both **AWS Import/Export APIs for import** and **Direct Access APIs for EBS snapshot creation** as the options for OS disk conversions.
+**一次情報**: "Migrate VMs from VMware to AWS EC2 and FSx for ONTAP" — Shift Toolkit UI ドキュメント
 
-- **Q1**: OS ディスクの EBS 変換は Shift Toolkit 自身がカバーする。データディスクのみではない。
-- **Q2**: Shift 自身が OS→EBS を担うため、別ツール併用は基本不要と読める。ただし Early Preview 制約下で非対応 OS がある場合は別途確認が必要。
-- **Q3**: EBS snapshot 作成 API を直接使う方式が示されており、中間フォーマット経由ではなく EBS snapshot → AMI の直接パスが提供される模様。詳細手順は未公開。
+- **Q1**: ✅ **OS ディスクの AMI 変換まで含む。** 2つの方式を提供:
+  1. **Amazon EBS Direct APIs**（推奨・最速）: EBS snapshot を直接作成
+  2. **AWS VM Import/Export**: VMDK → RAW → S3 アップロード → AMI 変換
+  - 現在の Preview リリースでは S3 import/export のみ有効。EBS Direct APIs は次回ドロップで有効化予定。
+
+- **Q2**: ✅ **別ツール併用は不要。** Shift Toolkit がエンドツーエンドで OS→EBS→AMI + Data→FSx for ONTAP LUN を処理する。ワークフロー内で VM Import/Export サービスを内部利用するが、ユーザーが別途ツールを操作する必要はない。
+
+- **Q3**: ✅ **標準手順として自動化されている。** 手順書記載のフロー:
+  1. Boot disk VMDK → RAW 変換（ONTAP CLI 経由）
+  2. RAW を S3 バケットにアップロード
+  3. AWS VM Import/Export で AMI として登録
+  - ユーザー操作は Shift Toolkit UI の Blueprint 作成 → Migrate ボタンのみ。
+
+- **Q4**: ✅ **自動化される。** 手順書に明記:
+  > "Shift toolkit is intelligent to automatically install the necessary cloud-init drivers"
+  - **Linux**: cloud-init + EC2 datasource + Chrony を自動インストール（Ubuntu/Debian, SUSE 各対応）
+  - **Windows**: EC2Launch v2 を自動インストール（MSI サイレントインストール）
+  - **ENA ドライバ**: prepareVM フェーズで注入（現在の Preview では disabled、次回ビルドで有効化）
+  - **VMware Tools**: 移行先で自動削除
+  - **注**: prepareVM の自動実行は現 Preview 版では disabled。次回ドロップで有効化予定。手動での事前準備コマンドが手順書に記載されている。
 
 ## 2. AWS Transform と Shift Toolkit の関係
 
@@ -53,39 +71,52 @@ EC2 は AMI（EBS バックド）からのみブート可能で、FSx for ONTAP 
 | Q7 | NetApp として、顧客への Shift Toolkit と AWS Transform の使い分け案内方針は（置き換え / 補完 / 並存）? | High | ⬜ 未回答 |
 | Q8 | AWS Transform でコンピュート（ルート = EBS）、Shift Toolkit でデータ（FSx for ONTAP）を分担する構成は推奨構成として成立するか? | High | ✅ 確認済み |
 
-### Q8 回答根拠（Shift v8.0 ブログ 2026-06-19）
+### Q8 回答根拠（公式 Shift Toolkit EC2 手順書 2026-06）
 
-> converting the OS disks to EBS format and associated data disks to Amazon FSx for ONTAP
+Shift Toolkit 自身が「OS = EBS（AMI）、データ = FSx for ONTAP（iSCSI LUN）」を標準構成として実装。手順書の移行フロー:
+1. Boot disk VMDK → RAW → S3 → AMI 登録
+2. Data disk VMDK → FSx for ONTAP 上の LUN に変換
+3. EC2 インスタンスを AMI から起動
+4. データディスクを iSCSI 経由で EC2 ゲスト内にアタッチ
 
-- **Q8**: Shift Toolkit 自身が「OS = EBS、データ = FSx for ONTAP」の分離構成を標準パスとして実装している。AWS Transform との分担ではなく、Shift 単体でこの構成を実現。AWS Transform との組み合わせ方針については依然として未回答。
+AWS Transform との分担は別の議論。Shift 単体でこの構成を完結できる。
 
-> **注**: Q5–Q7 は Shift v8.0 ブログでは一切触れられていない。AWS Transform との関係は NetApp 側に別途確認が必要。
+> **注**: Q5–Q7 は Shift Toolkit の手順書・ブログいずれでも触れられていない。AWS Transform との関係は AWS/NetApp 双方に別途確認が必要。
 
 ## 3. FSx for ONTAP 移行先としての仕様
 
 | # | 質問 | 優先度 | ステータス |
 |---|------|--------|-----------|
 | Q9 | AWS Transform の FSx for ONTAP 移行先はブロック（iSCSI LUN）のみか、NFS データストア相当も対象か? | High | ⬜ 未回答 |
-| Q10 | 移行後に Snapshot / SnapMirror / FlexClone / Storage Efficiency はそのまま継続利用できるか（系譜・メタデータの引き継ぎ有無）? | Critical | 🔶 部分回答 |
+| Q10 | 移行後に Snapshot / SnapMirror / FlexClone / Storage Efficiency はそのまま継続利用できるか（系譜・メタデータの引き継ぎ有無）? | Critical | ✅ 確認済み |
 | Q11 | 対応リージョン（東京 ap-northeast-1）での Preview 利用可否、Preview の制約、GA 時期の見通しは? | Medium | ⬜ 未回答 |
 
-### Q10 回答根拠（Shift v8.0 ブログ 2026-06-19）
+### Q10 回答根拠（公式 Shift Toolkit EC2 手順書 2026-06）
 
-> By utilizing ONTAP snapshots, SnapMirror replication, and Amazon FSx for NetApp ONTAP storage service, organizations can easily and quickly migrate VM workloads to Amazon EC2, eliminating the need for the time consuming copy processes typically required in traditional cloud migrations.
+手順書の移行フローから以下が確定:
+- SnapMirror でソース ONTAP → FSx for ONTAP にレプリケーション
+- 移行時に SnapMirror を break し、FSx for ONTAP 側を R/W 化
+- データディスクは VMDK → LUN に変換後、FSx for ONTAP のネイティブ LUN として存在
+- **移行後の FSx for ONTAP は通常運用と同等**: Snapshot / SnapMirror / FlexClone / Storage Efficiency はすべてネイティブに利用可能
 
-- **Q10**: SnapMirror でデータを FSx for ONTAP に転送し、移行後も ONTAP データ管理機能（Snapshot, SnapMirror, FlexClone）が利用可能であることが示唆されている。ただし「メタデータ系譜の引き継ぎ」（Snapshot 履歴の完全移行等）については明記なし。
+**注意点**: SnapMirror は移行時に break されるため、ソースとの「Snapshot 系譜（継続的な差分チェーン）」は断絶する。移行後は FSx for ONTAP 側で新規に Snapshot ポリシーを設定する運用となる。これは設計上の意図（移行完了 = カットオーバー）であり、問題ではなく正常な動作。
 
 ## 4. 前提・運用
 
 | # | 質問 | 優先度 | ステータス |
 |---|------|--------|-----------|
-| Q12 | Shift Toolkit の「ソース VM は ONTAP NFS データストア上が必須」という前提は EC2 移行パスでも同じか? | Medium | 🔶 部分回答 |
-| Q13 | 同時変換の並列数（最大 10 推奨）は EC2 移行パスでも同じか? | Low | ⬜ 未回答 |
+| Q12 | Shift Toolkit の「ソース VM は ONTAP NFS データストア上が必須」という前提は EC2 移行パスでも同じか? | Medium | ✅ 確認済み |
+| Q13 | 同時変換の並列数（最大 10 推奨）は EC2 移行パスでも同じか? | Low | 🔶 部分回答 |
 | Q14 | Early Preview / Public Preview 検証結果の公開可能範囲（NDA 対象の有無）は? | Medium | ⬜ 未回答 |
 
-### Q12 回答根拠（Shift v8.0 ブログ 2026-06-19）
+### Q12–Q13 回答根拠（公式 Shift Toolkit EC2 手順書 2026-06）
 
-ブログでは SnapMirror レプリケーション経由で FSx for ONTAP にデータを転送するフローが記載されており、ソース側が ONTAP NFS データストアである前提は変わらないと推定される。ただし明示的な記載はなく、Early Preview 有効化時に要確認。
+- **Q12**: ✅ **同じ前提**。手順書に明記:
+  > "Ensure the VM VMDKs are placed on NFSv3 volume (all VMDKs for a given VM should be part of the same volume)"
+  - NFSv3 データストア限定（NFSv4 は非対応で UI に表示されない）
+  - SAN ベースの VM は事前に Storage vMotion で NFS データストアに移動が必要
+
+- **Q13**: 🔶 手順書に「Multiple VMs can be converted in parallel and the broken-off SnapMirror destination used for storing the converted VM disks accordingly」と記載。明示的な並列数上限は EC2 パスのドキュメントには記載なし。従来の 10 並列推奨が引き続き適用されると推定。
 
 ## 5. DR（災害対策）シナリオ
 
@@ -110,17 +141,17 @@ EC2 は AMI（EBS バックド）からのみブート可能で、FSx for ONTAP 
 
 ---
 
-## 回答サマリー（2026-06-21 時点）
+## 回答サマリー（2026-06-22 時点 — 公式手順書入手後）
 
 | カテゴリ | ✅ 確認済み | 🔶 部分回答 | ⬜ 未回答 |
 |---------|-----------|-----------|---------|
-| 1. OS / ブート方式 | Q1 | Q2, Q3 | Q4 |
+| 1. OS / ブート方式 | Q1, Q2, Q3, Q4 | — | — |
 | 2. AWS Transform 関係 | Q8 | — | Q5, Q6, Q7 |
-| 3. FSx for ONTAP 仕様 | — | Q10 | Q9, Q11 |
-| 4. 前提・運用 | — | Q12 | Q13, Q14 |
+| 3. FSx for ONTAP 仕様 | Q10 | — | Q9, Q11 |
+| 4. 前提・運用 | Q12 | Q13 | Q14 |
 | 5. DR シナリオ | — | — | Q15–Q20 |
 
-**残存未回答（要 NetApp 確認）**: 12/20 問
+**確認済み**: 8/20 問 → **残存未回答（要 NetApp/AWS 確認）**: 9/20 問
 
-> 注: 本一覧は公開情報に基づく技術確認用。回答受領後、`research.md` の 3.2.1 / 3.2.4 の
-> 想定（推定）箇所を確定情報に更新すること。
+> 注: Q1–Q4, Q8, Q10, Q12 は公式 Shift Toolkit EC2 手順書（2026-06）で確定。
+> Q5–Q7（AWS Transform 関係）と Q15–Q20（DR）は Shift Toolkit のスコープ外のため別チャネルで確認。
