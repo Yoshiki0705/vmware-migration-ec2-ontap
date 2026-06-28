@@ -23,11 +23,12 @@ The verification focuses not just on "migrating from VMware to AWS" but on confi
 - Prerequisites: ONTAP 9.14.1+, NFS datastore, Windows-only tool
 - Free from NetApp
 
-### EC2 Early Preview (Under Investigation)
+### EC2 Early Preview (Confirmed via Shift Toolkit v8.0 Procedure)
 
-- **Confirmed scope**: Data disk placement on FSx for ONTAP
-- **Open question (P0)**: OS disk boot method — whether Shift Toolkit handles AMI conversion or requires VM Import/Export / MGN / CMC for the OS disk
-- **Requires**: NetApp-side enablement
+- **Confirmed scope**: Both OS disk (→ EBS → AMI) and data disk (→ FSx for ONTAP iSCSI LUN) are covered
+- **OS disk method**: Two approaches — EBS Direct APIs (recommended, next drop) and VM Import/Export (current Preview)
+- **Drivers**: cloud-init (Linux) / EC2Launch v2 (Windows) automatically injected
+- **Requires**: NetApp-side enablement via `ng-shift-toolkit-support@netapp.com`
 
 ### Tool Selection Guidance
 

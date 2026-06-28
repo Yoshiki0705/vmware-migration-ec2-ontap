@@ -1,5 +1,5 @@
-boto3>=1.34.0
-requests>=2.31.0
-pyyaml>=6.0.0
-pytest>=8.0.0
-cfn-lint>=0.87.0
+boto3==1.43.36
+requests==2.34.2
+pyyaml==6.0.3
+pytest==9.1.1
+cfn-lint==1.52.0
