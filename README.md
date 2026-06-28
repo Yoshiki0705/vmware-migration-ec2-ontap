@@ -104,8 +104,13 @@ cd vmware-migration-ec2-ontap
 # Git hooks 設定
 git config core.hooksPath .githooks
 
-# Python 依存関係
+# Python 仮想環境セットアップ
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+
+# 環境検証
+bash scripts/verify-setup.sh
 
 # PoC 環境デプロイ（Phase 1 — VPC + FSx for ONTAP）
 aws cloudformation deploy \
