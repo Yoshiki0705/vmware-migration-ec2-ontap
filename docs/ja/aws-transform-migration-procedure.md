@@ -447,6 +447,46 @@ aws mgn describe-source-servers --filters '{"sourceServerIDs": ["s-xxxxxxxxx"]}'
 
 ---
 
+## 8. 検証実績（2026-06 実施）
+
+### 8.1 AWS Transform 画面確認結果
+
+2026-06-25 に AWS Transform コンソール（東京リージョン: ap-northeast-1）を操作し、以下を確認:
+
+| 項目 | 確認結果 |
+|------|---------|
+| VMware Migration 機能 | **本番対応の機能**（Preview ではない）。画面上で「VMware環境からEC2への移行はプレビュー段階ではなく、本番対応の機能です」と明示 |
+| UI | チャットベース（Agentic AI）。自然言語で移行操作を指示可能 |
+| Workspace 作成 | `VMware-Migration-Test01` を作成済み（リクエスト → 数分で利用可能） |
+| 移行プロセス説明 | 1. 評価 → 2. 計画 → 3. 実行 → 4. 検証、の 4 ステップ |
+| ジョブ作成 | VMware Migration ジョブを新規作成し、評価と計画フェーズを開始可能 |
+
+> **重要な訂正**: AWS Transform の VMware → EC2 移行は**本番機能（GA）**。FSx for ONTAP 宛先のストレージ移行のみが Public Preview。旧 MGN（Application Migration Service）が Transform に統合・進化したため、EBS 向けリホストは歴史のある成熟した機能。
+
+### 8.2 AWS Transform と旧 MGN の関係整理
+
+| 観点 | 説明 |
+|------|------|
+| 名称変遷 | AWS Server Migration Service → AWS MGN (Application Migration Service) → **AWS Transform に統合** |
+| EBS 向け移行 | 旧 MGN 時代から存在する成熟機能。本番利用可能 |
+| FSx for ONTAP 向け移行 | 2026-06 に Public Preview として追加された新機能 |
+| UI/UX | 従来のコンソール型 → **Agentic AI（チャット型）に進化**。ジョブ作成・管理が対話形式 |
+
+### 8.3 現時点の制約・確認中事項
+
+- Workspace 作成後、ジョブ作成にタイムラグが発生する場合あり（「リクエストが開始されました」表示）
+- FSx for ONTAP 宛先機能の東京リージョン対応状況は引き続き確認中
+- vCenter 接続情報の準備が必要（Discovery フェーズで使用）
+
+### 8.4 次ステップ
+
+- [ ] VMware Migration ジョブを作成し、評価フェーズを開始
+- [ ] vCenter 接続情報を投入して Discovery を実行
+- [ ] FSx for ONTAP 宛先オプションの利用可否を確認
+- [ ] テスト移行（boot disk のみ → EBS）を実行してダウンタイムを実測
+
+---
+
 ## 参考リンク
 
 - [AWS Transform VMware — Migrate servers (UserGuide)](https://docs.aws.amazon.com/transform/latest/userguide/transform-vmware-migrate-servers.html)
