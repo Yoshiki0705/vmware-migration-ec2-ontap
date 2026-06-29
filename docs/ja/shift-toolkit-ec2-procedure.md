@@ -42,7 +42,7 @@
 │  ┌──────────────────────────▼───────────────────────┐                    │
 │  │  Amazon EC2 Instance                             │                    │
 │  │  ┌───────────────────┐  ┌──────────────────────┐│                    │
-│  │  │ OS: EBS (gp3)     │  │ Data: FSxN iSCSI LUN ││                    │
+│  │  │ OS: EBS (gp3)     │  │ Data: FSx for ONTAP  ││                    │
 │  │  │ (AMI からブート)   │  │ (iSCSI マルチパス)   ││                    │
 │  │  └───────────────────┘  └──────────────────────┘│                    │
 │  └──────────────────────────────────────────────────┘                    │
@@ -791,6 +791,77 @@ snapmirror resync -destination-path <SVM_NAME>:<VOLUME_NAME>
 - **SnapMirror resync の方向**: 必ず `destination-path`（FSx for ONTAP 側）を指定する。逆方向に resync すると**ソースデータが上書きされる**。
 - **partial success の判断**: Boot disk が AMI 化成功し、一部のデータディスクのみ失敗している場合、成功分を活かして失敗分のみ再実行する選択肢もある。ただし Early Preview 段階では全体ロールバック → 再実行を推奨。
 - **移行後に本番稼働開始した後のロールバック**: EC2 上で新規データが書き込まれた後は、単純な「ソースに戻す」ロールバックではデータロスが発生する。カットオーバー判定後のロールバックは別途計画が必要（フェイルバック = 逆方向の SnapMirror 設定）。
+
+---
+
+## 10. 検証実績（2026-06 実施）
+
+### 10.1 検証結果サマリー
+
+| Blueprint | 構成 | 結果 | 備考 |
+|-----------|------|------|------|
+| bp-winmigrate-test | boot disk のみ（C ドライブのみ） | ✅ Migration Complete | 初回テスト。EBS のみ使用 |
+| bp01 | 複数ディスク構成（boot + data） | ❌ Migration Error / Partially Healthy | Windows Firewall が原因で SSM Agent / iSCSI 接続に失敗 |
+| bp-ec2-migrate | 複数ディスク構成（boot + data） | ✅ Active / Healthy | Firewall 設定見直し後に成功 |
+
+### 10.2 実測タイミングデータ（bp-ec2-migrate）
+
+Blueprint `bp-ec2-migrate` の移行ジョブ完走時の各ステップ所要時間:
+
+| ステップ | 処理内容 | 所要時間 |
+|---------|---------|---------|
+| 1 | Checking if a snapshot can be triggered on the volumes | 0.5 秒 |
+| 2 | Deleting existing snapshots for all VMs in the setup | 1.7 秒 |
+| 3 | Triggering VM snapshots for resource groups at source before disk upload | 30.2 秒 |
+| 4 | Triggering volume snapshots before disk conversion | 5.2 秒 |
+| 5 | Updating SnapMirror relationships — final sync to FSx for ONTAP | 70.5 秒 |
+| 6 | Breaking SnapMirror relationships | 2 分 40.5 秒 |
+| 7 | Converting boot disk VMDKs to RAW | 12.7 秒 |
+| 8 | Uploading boot disk RAW files to S3 | **68 分 5.1 秒** |
+| 9 | Importing boot disks to AMIs | **36 分 20.6 秒** |
+| 10 | Launching EC2 instances | 15.1 秒 |
+
+**合計: 約 1 時間 49 分**
+
+#### 分析
+
+- **S3 アップロード（68 分）と AMI インポート（36 分）が全体の 95% を占める**。この 2 ステップがダウンタイムの支配的要因。
+- SnapMirror 関連（final sync + break）は合計約 3 分 51 秒で高速に完了。
+- VMDK → RAW 変換は 12.7 秒と高速（ONTAP CLI でのメタデータ操作のため）。
+- **Shift Toolkit 8.1（次期バージョン）で EBS Direct API ベースに変更予定** → S3 アップロード + AMI インポートが不要になり、大幅な時間短縮が期待される。
+
+### 10.3 FSx for ONTAP 側の確認結果
+
+複数ディスク構成の移行成功後、FSx for ONTAP 上で iSCSI LUN が正常に作成・マッピングされていることを確認:
+
+```text
+FsxIdXXXXXXXXXXXXXXXXX::> lun show
+Vserver   Path                            State   Mapped   Type        Size
+--------- ------------------------------- ------- -------- -------- --------
+fsxsvm01  /vol/ds_migtoaws_bk/win_testvm02-disk1-clone.lun
+                                           online  mapped   linux        50GB
+```
+
+### 10.4 複数ディスク構成での失敗原因と回避策
+
+初回の複数ディスク構成（bp01）では、以下の原因で失敗:
+
+| 失敗箇所 | 原因 | 回避策 |
+|---------|------|--------|
+| FSx for ONTAP からのディスクアタッチ | Windows Firewall が iSCSI / SSM Agent 通信をブロック | 移行前に Windows Firewall で必要なポート（3260, 443, ICMP）を開放 |
+| SSM Agent 接続 | Firewall + 通信経路の問題 | EC2 起動後に SSM Agent が AWS に到達できるよう SG / Route Table を確認 |
+
+**本番向け教訓:**
+
+- 移行前のゲスト OS 準備（セクション 4）に加え、**Windows Firewall の事前設定**が必須
+- iSCSI 関連ポート（3260）、SSM Agent（443 outbound）、WinRM（5986）を事前に許可
+- セキュリティグループだけでなく、ゲスト OS 内のファイアウォールも確認すること
+
+### 10.5 今後の検証予定
+
+- [ ] Linux VM での複数ディスク構成テスト
+- [ ] 大容量ディスク（200GB+）での所要時間計測
+- [ ] Shift Toolkit 8.1（EBS Direct API）リリース後の再検証
 
 ---
 

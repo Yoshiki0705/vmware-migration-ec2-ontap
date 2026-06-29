@@ -196,7 +196,9 @@ def generate_comparison_report(
     lines.append("")
     lines.append("## 構成比較")
     lines.append("")
-    lines.append("| 項目 | 構成 A: EBS gp3 のみ | 構成 B: EBS + FSx for ONTAP | 構成 C: EBS io2 (高IOPS) |")
+    lines.append(
+        "| 項目 | 構成 A: EBS gp3 のみ | 構成 B: EBS + FSx for ONTAP | 構成 C: EBS io2 (高IOPS) |"
+    )
     lines.append("|------|---------------------|-------------------|------------------------|")
     lines.append("| OS ディスク | EBS gp3 50GB | EBS gp3 50GB | EBS gp3 50GB |")
     lines.append(
@@ -225,7 +227,9 @@ def generate_comparison_report(
     lines.append(
         f"- FSx for ONTAP 容量プール ({fsxn['capacity_pool_gb']} GB): ${fsxn['cost_capacity_pool']:.2f}"
     )
-    lines.append(f"- FSx for ONTAP スループット ({throughput_mbps} MB/s): ${fsxn['cost_throughput']:.2f}")
+    lines.append(
+        f"- FSx for ONTAP スループット ({throughput_mbps} MB/s): ${fsxn['cost_throughput']:.2f}"
+    )
     lines.append(f"- **合計: ${os_disk_cost + fsxn['total_monthly_usd']:.2f}/月**")
     lines.append(f"- (Storage Efficiency により物理容量 {fsxn['physical_data_gb']} GB)")
     lines.append("")
@@ -280,7 +284,9 @@ def generate_comparison_report(
 def main():
     parser = argparse.ArgumentParser(description="EBS vs FSx for ONTAP コスト比較")
     parser.add_argument("--data-size", type=float, default=500, help="データサイズ (GB)")
-    parser.add_argument("--throughput", type=int, default=512, help="FSx for ONTAP スループット (MB/s)")
+    parser.add_argument(
+        "--throughput", type=int, default=512, help="FSx for ONTAP スループット (MB/s)"
+    )
     parser.add_argument(
         "--efficiency",
         type=float,

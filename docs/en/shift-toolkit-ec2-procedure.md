@@ -42,7 +42,7 @@
 │  ┌──────────────────────────▼───────────────────────┐                    │
 │  │  Amazon EC2 Instance                             │                    │
 │  │  ┌───────────────────┐  ┌──────────────────────┐│                    │
-│  │  │ OS: EBS (gp3)     │  │ Data: FSxN iSCSI LUN ││                    │
+│  │  │ OS: EBS (gp3)     │  │ Data: FSx for ONTAP  ││                    │
 │  │  │ (AMI からブート)   │  │ (iSCSI マルチパス)   ││                    │
 │  │  └───────────────────┘  └──────────────────────┘│                    │
 │  └──────────────────────────────────────────────────┘                    │
@@ -791,6 +791,77 @@ snapmirror resync -destination-path <SVM_NAME>:<VOLUME_NAME>
 - **SnapMirror resync direction**: Always specify `destination-path` (FSx for ONTAP side). Resyncing in the reverse direction will **overwrite source data**.
 - **Partial success judgment**: If the boot disk was successfully converted to AMI and only some data disks failed, there is the option to leverage the successful portion and re-execute only the failed parts. However, at the Early Preview stage, full rollback → re-execution is recommended.
 - **Rollback after production cutover**: After new data has been written on EC2, a simple "revert to source" rollback will result in data loss. Rollback after cutover decision requires separate planning (failback = reverse SnapMirror configuration).
+
+---
+
+## 10. Verification Results (2026-06)
+
+### 10.1 Results Summary
+
+| Blueprint | Configuration | Result | Notes |
+|-----------|--------------|--------|-------|
+| bp-winmigrate-test | Boot disk only (C drive only) | ✅ Migration Complete | Initial test. EBS only |
+| bp01 | Multi-disk (boot + data) | ❌ Migration Error / Partially Healthy | Windows Firewall blocked SSM Agent / iSCSI |
+| bp-ec2-migrate | Multi-disk (boot + data) | ✅ Active / Healthy | Succeeded after Firewall fix |
+
+### 10.2 Measured Timing Data (bp-ec2-migrate)
+
+Per-step durations from the completed migration job for Blueprint `bp-ec2-migrate`:
+
+| Step | Processing | Duration |
+|------|-----------|----------|
+| 1 | Checking if a snapshot can be triggered on the volumes | 0.5 sec |
+| 2 | Deleting existing snapshots for all VMs in the setup | 1.7 sec |
+| 3 | Triggering VM snapshots for resource groups at source before disk upload | 30.2 sec |
+| 4 | Triggering volume snapshots before disk conversion | 5.2 sec |
+| 5 | Updating SnapMirror relationships — final sync to FSx for ONTAP | 70.5 sec |
+| 6 | Breaking SnapMirror relationships | 2 min 40.5 sec |
+| 7 | Converting boot disk VMDKs to RAW | 12.7 sec |
+| 8 | Uploading boot disk RAW files to S3 | **68 min 5.1 sec** |
+| 9 | Importing boot disks to AMIs | **36 min 20.6 sec** |
+| 10 | Launching EC2 instances | 15.1 sec |
+
+**Total: approximately 1 hour 49 minutes**
+
+#### Analysis
+
+- **S3 upload (68 min) and AMI import (36 min) account for 95% of total time**. These two steps dominate the downtime.
+- SnapMirror-related steps (final sync + break) completed in approximately 3 min 51 sec total — very fast.
+- VMDK → RAW conversion took 12.7 sec — fast due to being an ONTAP CLI metadata operation.
+- **Shift Toolkit 8.1 (next version) plans to switch to EBS Direct API** → S3 upload + AMI import will be eliminated, with significant time reduction expected.
+
+### 10.3 FSx for ONTAP Verification
+
+After successful multi-disk migration, confirmed that iSCSI LUNs were properly created and mapped on FSx for ONTAP:
+
+```text
+FsxIdXXXXXXXXXXXXXXXXX::> lun show
+Vserver   Path                            State   Mapped   Type        Size
+--------- ------------------------------- ------- -------- -------- --------
+fsxsvm01  /vol/ds_migtoaws_bk/win_testvm02-disk1-clone.lun
+                                           online  mapped   linux        50GB
+```
+
+### 10.4 Multi-Disk Configuration Failure Root Cause and Workaround
+
+The initial multi-disk configuration (bp01) failed due to:
+
+| Failure Point | Root Cause | Workaround |
+|--------------|-----------|------------|
+| Disk attach from FSx for ONTAP | Windows Firewall blocked iSCSI / SSM Agent communication | Open required ports (3260, 443, ICMP) in Windows Firewall before migration |
+| SSM Agent connection | Firewall + network path issues | Verify SG / Route Table allows SSM Agent to reach AWS after EC2 launch |
+
+**Lessons for production:**
+
+- In addition to guest OS preparation (Section 4), **Windows Firewall pre-configuration is mandatory**
+- Pre-allow iSCSI ports (3260), SSM Agent (443 outbound), WinRM (5986)
+- Check both Security Groups AND guest OS firewall
+
+### 10.5 Planned Next Verifications
+
+- [ ] Multi-disk configuration test with Linux VM
+- [ ] Duration measurement with large disks (200GB+)
+- [ ] Re-verification after Shift Toolkit 8.1 (EBS Direct API) release
 
 ---
 

@@ -79,7 +79,7 @@ jobs:
           persist-credentials: false
 
       - name: Run markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@db4f21d3585ee6a6b91de4fd0bcf5e2bfce2e60a # v19.1.0
+        uses: DavidAnson/markdownlint-cli2-action@fa0cd0f1a052f54da593c83860f2292982f5d142 # v23.2.0
         with:
           globs: |
             docs/**/*.md

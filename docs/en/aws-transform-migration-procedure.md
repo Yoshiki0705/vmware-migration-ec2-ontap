@@ -447,6 +447,46 @@ aws mgn describe-source-servers --filters '{"sourceServerIDs": ["s-xxxxxxxxx"]}'
 
 ---
 
+## 8. Verification Results (2026-06)
+
+### 8.1 AWS Transform Console Findings
+
+Operated the AWS Transform console (Tokyo region: ap-northeast-1) on 2026-06-25 and confirmed:
+
+| Item | Finding |
+|------|---------|
+| VMware Migration feature | **Production-ready (not Preview)**. UI explicitly states: "VMware migration to EC2 is not a preview feature; it is a production-ready capability" |
+| UI | Chat-based (Agentic AI). Migration operations can be directed in natural language |
+| Workspace creation | `VMware-Migration-Test01` created (request → available within minutes) |
+| Migration process | Explained in 4 steps: 1. Assessment → 2. Planning → 3. Execution → 4. Validation |
+| Job creation | VMware Migration jobs can be created to begin assessment and planning phases |
+
+> **Important correction**: AWS Transform's VMware → EC2 migration is a **production feature (GA)**. Only the FSx for ONTAP destination for storage migration is Public Preview. Since the former MGN (Application Migration Service) was integrated and evolved into Transform, EBS-target rehosting is a mature capability with a long history.
+
+### 8.2 AWS Transform and Former MGN Relationship
+
+| Aspect | Description |
+|--------|-------------|
+| Name evolution | AWS Server Migration Service → AWS MGN (Application Migration Service) → **Integrated into AWS Transform** |
+| EBS-target migration | Mature feature existing since the MGN era. Production-ready |
+| FSx for ONTAP-target migration | New capability added as Public Preview in 2026-06 |
+| UI/UX | Evolved from traditional console → **Agentic AI (chat-based)**. Job creation and management via conversational interface |
+
+### 8.3 Current Constraints / Items Under Investigation
+
+- After workspace creation, there may be a time lag before job creation becomes available ("Request has been initiated" display)
+- Tokyo region availability of FSx for ONTAP destination feature continues to be investigated
+- vCenter connection information preparation is required (used in Discovery phase)
+
+### 8.4 Next Steps
+
+- [ ] Create VMware Migration job and start assessment phase
+- [ ] Input vCenter connection information and execute Discovery
+- [ ] Confirm availability of FSx for ONTAP destination option
+- [ ] Execute test migration (boot disk only → EBS) and measure actual downtime
+
+---
+
 ## Reference Links
 
 - [AWS Transform VMware — Migrate servers (UserGuide)](https://docs.aws.amazon.com/transform/latest/userguide/transform-vmware-migrate-servers.html)
