@@ -4,12 +4,15 @@
   "MD024": {
     "siblings_only": true
   },
+  "MD029": false,
+  "MD031": false,
   "MD032": false,
   "MD033": {
     "allowed_elements": ["br", "img", "details", "summary"]
   },
   "MD034": false,
   "MD036": false,
+  "MD040": false,
   "MD041": false,
   "MD050": false,
   "MD055": false,
