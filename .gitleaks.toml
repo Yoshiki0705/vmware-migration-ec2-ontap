@@ -40,4 +40,5 @@ paths = [
   '''.*\.example$''',
   '''.*\.md$''',
   '''templates/.*\.yaml$''',
+  '''params/.*\.example\.json$''',
 ]

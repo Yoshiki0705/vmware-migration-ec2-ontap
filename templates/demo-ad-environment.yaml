@@ -1,0 +1,348 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  AD Environment for FSx for ONTAP SMB Access —
+  Pattern C: Use existing self-managed Active Directory (on-premises AD via
+  AD Connector or Direct Connect/VPN). Deploys AD Connector and configures
+  networking for FSx for ONTAP SVM to join an on-premises AD domain.
+
+# ==============================================================================
+# Metadata
+# ==============================================================================
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VpcId
+          - PrivateSubnet1Id
+          - PrivateSubnet2Id
+          - OnPremDnsIp1
+          - OnPremDnsIp2
+      - Label:
+          default: Active Directory Configuration
+        Parameters:
+          - AdDomainName
+          - AdNetbiosName
+          - SelfManagedAdOu
+          - AdConnectorSize
+      - Label:
+          default: FSx for ONTAP Configuration
+        Parameters:
+          - FsxnFileSystemId
+          - SvmName
+
+# ==============================================================================
+# Parameters
+# ==============================================================================
+Parameters:
+
+  # --- Network ---
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC where FSx for ONTAP and AD Connector reside
+
+  PrivateSubnet1Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet 1 (must have route to on-premises AD)
+
+  PrivateSubnet2Id:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet 2 (different AZ, must have route to on-premises AD)
+
+  OnPremDnsIp1:
+    Type: String
+    AllowedPattern: '^(\d{1,3}\.){3}\d{1,3}$'
+    Description: Primary on-premises DNS/AD Domain Controller IP address
+
+  OnPremDnsIp2:
+    Type: String
+    AllowedPattern: '^(\d{1,3}\.){3}\d{1,3}$'
+    Description: Secondary on-premises DNS/AD Domain Controller IP address
+
+  # --- Active Directory ---
+  AdDomainName:
+    Type: String
+    Description: FQDN of the on-premises AD domain (e.g., corp.example.com)
+    AllowedPattern: '^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)+$'
+
+  AdNetbiosName:
+    Type: String
+    MaxLength: 15
+    Description: NetBIOS name of the on-premises AD domain (e.g., CORP)
+    AllowedPattern: '^[A-Z][A-Z0-9\-]{0,14}$'
+
+  SelfManagedAdOu:
+    Type: String
+    Default: 'OU=FSxONTAP,OU=Servers,DC=corp,DC=example,DC=com'
+    Description: >
+      Distinguished Name of the OU where FSx for ONTAP SVM computer accounts
+      are created. Must match migration source OU structure for SID preservation.
+      Format: OU=Name,DC=domain,DC=tld
+
+  AdConnectorSize:
+    Type: String
+    Default: Small
+    AllowedValues: [Small, Large]
+    Description: >
+      AD Connector size. Small: up to 500 users. Large: up to 5,000 users.
+      Choose based on concurrent SMB session count after migration.
+
+  # --- FSx for ONTAP ---
+  FsxnFileSystemId:
+    Type: String
+    Description: >
+      Existing FSx for ONTAP File System ID (from poc-environment stack output).
+      Used for DNS resolver rule target and documentation only — SVM AD join
+      is performed separately via demo-ad-join-svm.sh.
+    AllowedPattern: '^fs-[0-9a-f]+$'
+
+  SvmName:
+    Type: String
+    Default: svm-smb
+    Description: Name of the SVM to join to AD (for tagging and documentation)
+    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9_\-]{0,46}$'
+
+# ==============================================================================
+# Resources
+# ==============================================================================
+Resources:
+
+  # ---------- AD Connector Security Group ----------
+  AdConnectorSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for AD Connector - allows AD traffic to on-prem DCs
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        # DNS (UDP)
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: '0.0.0.0/0'
+          Description: DNS UDP responses
+        # DNS (TCP)
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: '0.0.0.0/0'
+          Description: DNS TCP responses
+      SecurityGroupEgress:
+        # DNS
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: '0.0.0.0/0'
+          Description: DNS to on-prem DCs
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: '0.0.0.0/0'
+          Description: DNS UDP to on-prem DCs
+        # Kerberos
+        - IpProtocol: tcp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: '0.0.0.0/0'
+          Description: Kerberos TCP
+        - IpProtocol: udp
+          FromPort: 88
+          ToPort: 88
+          CidrIp: '0.0.0.0/0'
+          Description: Kerberos UDP
+        # LDAP
+        - IpProtocol: tcp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: '0.0.0.0/0'
+          Description: LDAP TCP
+        - IpProtocol: udp
+          FromPort: 389
+          ToPort: 389
+          CidrIp: '0.0.0.0/0'
+          Description: LDAP UDP
+        # LDAPS
+        - IpProtocol: tcp
+          FromPort: 636
+          ToPort: 636
+          CidrIp: '0.0.0.0/0'
+          Description: LDAPS
+        # SMB
+        - IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: '0.0.0.0/0'
+          Description: SMB/CIFS
+        # NTP
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: '0.0.0.0/0'
+          Description: NTP
+        # RPC
+        - IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: '0.0.0.0/0'
+          Description: RPC endpoint mapper
+        # High RPC ports
+        - IpProtocol: tcp
+          FromPort: 49152
+          ToPort: 65535
+          CidrIp: '0.0.0.0/0'
+          Description: RPC dynamic ports
+        # Global Catalog
+        - IpProtocol: tcp
+          FromPort: 3268
+          ToPort: 3269
+          CidrIp: '0.0.0.0/0'
+          Description: Global Catalog (LDAP/LDAPS)
+      Tags:
+        - Key: Name
+          Value: demo-ad-connector-sg
+        - Key: Project
+          Value: vmware-migration-ec2-ontap
+
+  # ---------- AD Connector (placeholder) ----------
+  # AD Connector is not directly supported as a CloudFormation resource type.
+  # Deploy using the AWS CLI or SDK:
+  #   aws ds connect-directory \
+  #     --name <AdDomainName> \
+  #     --short-name <AdNetbiosName> \
+  #     --size <AdConnectorSize> \
+  #     --connect-settings SubnetIds=<subnet1>,<subnet2>,VpcId=<vpc>,CustomerDnsIps=<ip1>,<ip2>,CustomerUserName=<svc-account>
+  #     --password <svc-account-password>
+  # See docs/ja/ad-integration-for-migration.md for details.
+  AdConnectorPlaceholder:
+    Type: AWS::CloudFormation::WaitConditionHandle
+    Metadata:
+      Comment: >
+        Placeholder resource. AD Connector must be deployed via CLI/SDK.
+        The Security Group, DNS Resolver Rules, and DHCP Options below are
+        valid CloudFormation resources that support the AD Connector deployment.
+      AdConnectorSize: !Ref AdConnectorSize
+
+  # ---------- Route 53 Resolver Rule (forward AD domain to on-prem DNS) ----------
+  AdDomainResolverRule:
+    Type: AWS::Route53Resolver::ResolverRule
+    Properties:
+      DomainName: !Ref AdDomainName
+      Name: !Sub 'forward-${AdNetbiosName}-to-onprem'
+      RuleType: FORWARD
+      TargetIps:
+        - Ip: !Ref OnPremDnsIp1
+          Port: 53
+        - Ip: !Ref OnPremDnsIp2
+          Port: 53
+      ResolverEndpointId: !Ref AdDnsOutboundEndpoint
+      Tags:
+        - Key: Name
+          Value: !Sub 'forward-${AdNetbiosName}-to-onprem'
+        - Key: Project
+          Value: vmware-migration-ec2-ontap
+
+  AdDomainResolverRuleAssociation:
+    Type: AWS::Route53Resolver::ResolverRuleAssociation
+    Properties:
+      ResolverRuleId: !Ref AdDomainResolverRule
+      VPCId: !Ref VpcId
+      Name: !Sub '${AdNetbiosName}-vpc-association'
+
+  # ---------- Route 53 Outbound Resolver Endpoint ----------
+  AdDnsOutboundEndpoint:
+    Type: AWS::Route53Resolver::ResolverEndpoint
+    Properties:
+      Direction: OUTBOUND
+      IpAddresses:
+        - SubnetId: !Ref PrivateSubnet1Id
+        - SubnetId: !Ref PrivateSubnet2Id
+      SecurityGroupIds:
+        - !Ref AdConnectorSecurityGroup
+      Name: ad-outbound-resolver
+      Tags:
+        - Key: Name
+          Value: ad-outbound-resolver
+        - Key: Project
+          Value: vmware-migration-ec2-ontap
+
+  # ---------- VPC DHCP Options (use on-prem DNS for AD) ----------
+  AdDhcpOptions:
+    Type: AWS::EC2::DHCPOptions
+    Properties:
+      DomainName: !Ref AdDomainName
+      DomainNameServers:
+        - !Ref OnPremDnsIp1
+        - !Ref OnPremDnsIp2
+      Tags:
+        - Key: Name
+          Value: !Sub 'dhcp-${AdNetbiosName}'
+        - Key: Project
+          Value: vmware-migration-ec2-ontap
+
+  AdDhcpOptionsAssociation:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Properties:
+      VpcId: !Ref VpcId
+      DhcpOptionsId: !Ref AdDhcpOptions
+
+  # ---------- Windows EC2 Domain Join (Reference Pattern) ----------
+  # When migrated Windows EC2 instances need to join the AD domain,
+  # use AWS::SSM::Association with the AWS-managed document.
+  #
+  # IMPORTANT: Do NOT use EC2 SsmAssociations property + custom SSM Document.
+  # That pattern fails with: "Document schema version, 2.2, is not supported
+  # by association that is created with instance id"
+  #
+  # Correct pattern (uncomment and adapt when deploying Windows EC2):
+  #
+  # WindowsDomainJoinAssociation:
+  #   Type: AWS::SSM::Association
+  #   Properties:
+  #     Name: AWS-JoinDirectoryServiceDomain
+  #     Targets:
+  #       - Key: InstanceIds
+  #         Values:
+  #           - !Ref WindowsInstance
+  #     Parameters:
+  #       directoryId:
+  #         - !Ref DirectoryId           # AD Connector or Managed AD ID
+  #       directoryName:
+  #         - !Ref AdDomainName
+  #       dnsIpAddresses:
+  #         - !Ref OnPremDnsIp1
+  #         - !Ref OnPremDnsIp2
+  #
+  # Required IAM policies on the EC2 instance role:
+  #   - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  #   - arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess
+
+# ==============================================================================
+# Outputs
+# ==============================================================================
+Outputs:
+
+  AdConnectorSecurityGroupId:
+    Description: Security Group ID for AD Connector and DNS resolution
+    Value: !Ref AdConnectorSecurityGroup
+
+  AdDnsOutboundEndpointId:
+    Description: Route 53 Outbound Resolver Endpoint ID
+    Value: !Ref AdDnsOutboundEndpoint
+
+  AdDomainResolverRuleId:
+    Description: Route 53 Resolver Rule ID for AD domain forwarding
+    Value: !Ref AdDomainResolverRule
+
+  DhcpOptionsId:
+    Description: DHCP Options Set ID with on-prem DNS servers
+    Value: !Ref AdDhcpOptions
+
+  SvmAdJoinCommand:
+    Description: Command hint — join SVM to AD using the companion script
+    Value: !Sub >
+      ./scripts/demo-ad-join-svm.sh
+        --filesystem-id ${FsxnFileSystemId}
+        --svm-name ${SvmName}
+        --domain ${AdDomainName}
+        --ou "${SelfManagedAdOu}"
+        --dns-ips ${OnPremDnsIp1},${OnPremDnsIp2}
