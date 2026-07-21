@@ -32,6 +32,13 @@ cfn-lint templates/*.yaml
 - `.githooks/pre-commit` for local checks
 - VMware/ONTAP credentials NEVER in repository
 
+## Common Pitfalls
+
+| Pitfall | Root Cause | Solution |
+|---------|-----------|----------|
+| AgentCore Gateway assumed us-east-1 only | Workshop examples default to us-east-1 | **ap-northeast-1 で利用可能（検証済み 2026-07）**。Gateway + Lambda を同一リージョンに配置 |
+| `create-gateway-target` で Lambda not found | Gateway と Lambda のリージョン不一致 | 同一リージョン配置必須。クロスリージョン Lambda 呼び出しは不可 |
+
 ## Agent Output Standards
 
 > User-level Kiro global steering mirror. Ensures compliance even when steering is not loaded.
