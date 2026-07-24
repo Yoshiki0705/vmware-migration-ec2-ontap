@@ -28,27 +28,27 @@ VMware ワークロードの移行先について、AWS は公式に5つのパ�
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
-│              VMware ワークロードの AWS パスウェイ                      │
+│              VMware ワークロードの AWS パスウェイ                       │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  1. Migrate to Amazon EC2（リホスト）                                │
-│     └─ VMware VM → EC2 インスタンス化                               │
-│        ツール: AWS Transform, MGN, CMC, Shift Toolkit              │
+│  1. Migrate to Amazon EC2（リホスト）                                 │
+│     └─ VMware VM → EC2 インスタンス化                                 │
+│        ツール: AWS Transform, MGN, CMC, Shift Toolkit                │
 │                                                                     │
-│  2. Modernize on AWS（モダナイゼーション）                            │
-│     └─ コンテナ化 / サーバーレス化                                   │
-│        → Amazon ECS / EKS (EC2 mode / Fargate)                     │
+│  2. Modernize on AWS（モダナイゼーション）                              │
+│     └─ コンテナ化 / サーバーレス化                                      │
+│        → Amazon ECS / EKS (EC2 mode / Fargate)                      │
 │        → AWS Lambda / AWS Batch                                     │
 │        → Amazon WorkSpaces (VDI)                                    │
 │                                                                     │
 │  3. Run VMware on AWS（VMware 継続）                                 │
 │     └─ Amazon Elastic VMware Service (EVS)                          │
-│        既存 vSphere スキル・ツールをそのまま活用                      │
+│        既存 vSphere スキル・ツールをそのまま活用                   　     │
 │                                                                     │
 │  4. Run AWS on-premises（オンプレ AWS）                              │
 │     └─ AWS Outposts                                                 │
 │                                                                     │
-│  5. Run third-party hypervisors on AWS（パートナーソリューション）    │
+│  5. Run third-party hypervisors on AWS（パートナーソリューション）    　 │
 │     └─ Red Hat OpenShift Service on AWS (ROSA)                      │
 │     └─ Nutanix Cloud Clusters on AWS (NC2)                          │
 │                                                                     │
@@ -116,25 +116,25 @@ Nutanix CEO Rajiv Ramaswami 氏は「外部ストレージプラットフォー�
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│          NetApp ONTAP — データの可搬性と一貫性                 │
+│          NetApp ONTAP — データの可搬性と一貫性                  │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  オンプレ                    AWS                            │
-│  ┌──────────────┐           ┌──────────────────────┐       │
-│  │ ONTAP (FAS/  │◄─SnapMirror─►│ FSx for ONTAP      │       │
-│  │   AFF)       │           │  (EC2/ECS/EKS/EVS)  │       │
-│  └──────┬───────┘           └──────────┬───────────┘       │
-│         │                              │                    │
-│  ┌──────▼───────┐           ┌──────────▼───────────┐       │
-│  │ VMware ESXi  │           │ Amazon EC2 (Nitro)   │       │
-│  │ Nutanix AHV  │           │ Amazon EVS           │       │
-│  │ Hyper-V      │           │ ROSA                 │       │
-│  │ OpenShift    │           │ NC2 on AWS           │       │
-│  │ Proxmox      │           │ Outposts + ONTAP     │       │
-│  └──────────────┘           └──────────────────────┘       │
+│  オンプレ                     AWS                            │
+│  ┌──────────────┐              ┌──────────────────────┐     │
+│  │ ONTAP (FAS/  │◄─SnapMirror─►│ FSx for ONTAP        │     │
+│  │   AFF)       │              │  (EC2/ECS/EKS/EVS)   │     │
+│  └──────┬───────┘              └────────┬─────────────┘     │
+│         │                               │                   │
+│  ┌──────▼───────┐           ┌───────────▼──────────┐        │
+│  │ VMware ESXi  │           │ Amazon EC2 (Nitro)   │        │
+│  │ Nutanix AHV  │           │ Amazon EVS           │        │
+│  │ Hyper-V      │           │ ROSA                 │        │
+│  │ OpenShift    │           │ NC2 on AWS           │        │
+│  │ Proxmox      │           │ Outposts + ONTAP     │        │
+│  └──────────────┘           └──────────────────────┘        │
 │                                                             │
-│  共通: Snapshot / FlexClone / SnapMirror / Efficiency       │
-│  共通: NFS / SMB / iSCSI / S3 マルチプロトコル              │
+│  共通: Snapshot / FlexClone / SnapMirror / Efficiency       │ 
+│  共通: NFS / SMB / iSCSI / S3 マルチプロトコル            　    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
