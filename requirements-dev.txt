@@ -1,0 +1,14 @@
+# Development / quality-gate tooling.
+#
+# Why this file is separate from requirements.txt: requirements.txt is what the
+# automation scripts need at runtime. This file is what the gates need. Both are
+# exact-pinned so that a local run and a CI run inspect the same tree with the
+# same tool. Previously CI ran `pip install ruff cfn-lint` unpinned while the
+# repo pinned cfn-lint==1.52.0 in requirements.txt, so CI and local could
+# disagree about whether the tree was clean.
+#
+# Bump deliberately (Renovate opens the PR); never widen to a range.
+ruff==0.15.20
+cfn-lint==1.52.0
+pytest==9.1.1
+bandit==1.9.4

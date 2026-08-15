@@ -1,0 +1,102 @@
+# Quality gates for vmware-migration-ec2-ontap.
+#
+# Two invariants this file exists to hold:
+#
+# 1. Every target is declared in .PHONY. Targets named after a directory that
+#    exists on disk (docs, scripts, templates, security) are otherwise treated
+#    by make as up-to-date files, so make prints "up to date" and never runs the
+#    recipe. The gate reads as passing while having executed nothing.
+#    scripts/tests/test_makefile_phony.py fails the build if a target is added
+#    without being declared.
+#
+# 2. Path lists live in variables here and CI calls these targets, so local and
+#    CI cannot end up inspecting different trees.
+#
+# Tools resolve from .venv when it exists, otherwise from PATH. Versions are
+# pinned in requirements-dev.txt.
+
+VENV      := .venv
+VENV_BIN  := $(VENV)/bin
+tool       = $(if $(wildcard $(VENV_BIN)/$(1)),$(VENV_BIN)/$(1),$(1))
+
+PYTHON    := $(call tool,python)
+PIP       := $(call tool,pip)
+RUFF      := $(call tool,ruff)
+PYTEST    := $(call tool,pytest)
+CFN_LINT  := $(call tool,cfn-lint)
+BANDIT    := $(call tool,bandit)
+
+# Single source of truth for what each gate inspects.
+PY_PATHS      := scripts
+TEST_DIRS     := scripts/tests
+TEMPLATE_GLOB := templates/*.yaml
+SHELL_PATHS   := scripts
+DOC_GLOBS     := docs/**/*.md README.md README.en.md
+AGENTS_FILE   := AGENTS.md
+
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help: ## このファイルのターゲット一覧
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: install
+install: ## .venv を作り requirements を固定版で導入
+	@test -d $(VENV) || python3 -m venv $(VENV)
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements.txt -r requirements-dev.txt
+
+.PHONY: tools
+tools: ## 各ツールの解決先とバージョンを表示（ローカルと CI の差を見るため）
+	@for t in ruff cfn-lint pytest bandit; do \
+		resolved=$$( [ -x "$(VENV_BIN)/$$t" ] && echo "$(VENV_BIN)/$$t" || command -v $$t || echo "(not found)" ); \
+		printf '%-10s %-24s ' "$$t" "$$resolved"; \
+		[ -x "$$resolved" ] && "$$resolved" --version 2>&1 | head -1 || echo ""; \
+	done
+
+.PHONY: lint
+lint: ## ruff check
+	$(RUFF) check $(PY_PATHS)
+
+.PHONY: format-check
+format-check: ## ruff format --check
+	$(RUFF) format --check $(PY_PATHS)
+
+.PHONY: format
+format: ## ruff format（書き換える）
+	$(RUFF) format $(PY_PATHS)
+
+.PHONY: test
+test: ## pytest（TEST_DIRS を明示。|| true で結果を捨てない）
+	$(PYTEST) $(TEST_DIRS) -v --tb=short
+
+.PHONY: cfn-lint
+cfn-lint: ## CloudFormation テンプレートの lint
+	$(CFN_LINT) $(TEMPLATE_GLOB)
+
+.PHONY: security
+security: ## bandit（Medium 以上でブロック）
+	$(BANDIT) -r $(PY_PATHS) -ll
+
+.PHONY: shellcheck
+shellcheck: ## shellcheck（未導入ならスキップ理由を出して失敗させる）
+	@command -v shellcheck >/dev/null || { echo "shellcheck が見つかりません。brew install shellcheck"; exit 1; }
+	shellcheck --severity=warning $(SHELL_PATHS)/*.sh
+
+.PHONY: agent-config
+agent-config: ## steering / skills / hooks の到達性（グローバル検証器）
+	$(PYTHON) $${KIRO_HOME:-$$HOME/.kiro}/hooks/scripts/validate_agent_config.py
+
+.PHONY: context-budget
+context-budget: ## 常時ロードコンテキストの上限とローダーの薄さ
+	$(PYTHON) scripts/check_agent_context_budget.py
+
+.PHONY: drift
+drift: agent-config context-budget ## 逆戻り検出（設定の到達性 + 常時ロード予算）
+
+.PHONY: ci
+ci: lint format-check test cfn-lint security drift ## CI が呼ぶ集約ターゲット
+
+.PHONY: all
+all: ci ## ci の別名
