@@ -28,8 +28,6 @@
 | [DR SnapMirror Runbook](docs/ja/dr-snapmirror-runbook.md) | SnapMirror を使った DR 設計 |
 | [PoC 計画テンプレート](docs/ja/poc-plan-template.md) | 成功指標・検証計画 |
 | [NetApp Q&A](docs/ja/netapp-questions.md) | NetApp 側への確認事項 |
-| [ブログ #1: なぜ EC2 + FSx for ONTAP か](docs/ja/blog-01-why-ec2-fsxn.md) | 記事ドラフト |
-| [ブログ #2: Shift Toolkit + FlexClone](docs/ja/blog-02-shift-toolkit-flexclone.md) | 記事ドラフト |
 
 </details>
 

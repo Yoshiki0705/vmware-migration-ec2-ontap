@@ -11,6 +11,7 @@ results as articles, automation scripts, and architecture guidance.
 docs/ja/     日本語ドキュメント（主）
 docs/en/     英語ドキュメント
 docs/agent/  エージェント向け（この階層）
+.private/    非公開。gitignore 対象
 scripts/     Python / Bash 自動化
 scripts/tests/ pytest（Makefile の TEST_DIRS が指す唯一の場所）
 templates/   CloudFormation
@@ -53,6 +54,13 @@ Do not deploy Phase 1 until all of these hold:
 - Shift Toolkit Early Preview enablement status confirmed
 - VPN or AWS Direct Connect design complete, if on-premises connectivity is needed
 - `scripts/verify-setup.sh` passes
+
+## Unpublished material
+
+Article drafts live in `.private/blog-drafts/{ja,en}/`, which is gitignored. Do
+not create or move a draft under `docs/`: anything there is published on push,
+and an unfinished draft read as a finished statement is the failure mode being
+avoided. Move a draft into `docs/` only when it is meant to be published.
 
 ## Credentials
 
