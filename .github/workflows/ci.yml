@@ -10,8 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  python-lint-and-test:
-    name: Python (ruff + pytest)
+  # Every step below calls a Makefile target. Path lists live in Makefile
+  # variables and tool versions in requirements-dev.txt, so CI and a local run
+  # cannot inspect different trees with different tools.
+  gates:
+    name: Gates (ruff / pytest / cfn-lint / bandit / drift)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -22,39 +25,32 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff pytest
+      - name: Install pinned tooling
+        run: make install
+
+      - name: Report resolved tool versions
+        run: make tools
 
       - name: Ruff lint
-        run: ruff check scripts/ --output-format=github
+        run: make lint
 
       - name: Ruff format check
-        run: ruff format --check scripts/
+        run: make format-check
 
       - name: Pytest
-        run: pytest tests/ -v --tb=short || true
-        # tests/ may not exist yet; allow failure until tests are added
+        run: make test
 
-  cfn-lint:
-    name: CloudFormation lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
+      - name: CloudFormation lint
+        run: make cfn-lint
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
+      - name: Bandit (Medium and above)
+        run: make security
 
-      - name: Install cfn-lint
-        run: pip install cfn-lint
-
-      - name: Lint CloudFormation templates
-        run: cfn-lint templates/*.yaml
+      # `make drift` also runs the global steering/skills validator, which lives
+      # in ~/.kiro and is not present on a runner. Only the repository-local half
+      # of drift detection runs here; the other half runs at SessionStart locally.
+      - name: Context budget (AGENTS.md size, loader thinness, index reachability)
+        run: make context-budget
 
   shellcheck:
     name: Shell script lint
