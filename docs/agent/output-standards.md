@@ -8,20 +8,22 @@ when steering is not loaded. Enforced by
 ## Naming (NetApp / AWS)
 
 - First mention: **Amazon FSx for NetApp ONTAP**; thereafter **FSx for ONTAP**.
-  `FSxN`, bare `FSx`, and `FSx ONTAP` are forbidden.
-- Access Points: **FSx for ONTAP S3 AP** — not "FSx S3 AP", and not a bare
+  `FSxN`, bare `FSx`, and `FSx ONTAP` are forbidden. <!-- allow:naming -->
+- Access Points: **FSx for ONTAP S3 AP** — not "FSx S3 AP", and not a bare <!-- allow:naming -->
   "S3 AP" where the FSx for ONTAP context matters.
-- Do not propose NetApp Workload Factory, NetApp Console, or BlueXP. Reframe to
+- Do not propose NetApp Workload Factory, NetApp Console, or BlueXP. Reframe to <!-- allow:naming -->
   the native equivalent: Amazon CloudWatch, ONTAP REST API, FabricPool,
   AWS DataSync, Snapshot / FlexClone / SnapMirror.
-- Exception: a verbatim external citation title. Annotate the line with
-  `<!-- allow:naming -->`.
+- Exception: a verbatim external citation title, or a line that has to quote a
+  forbidden term in order to forbid it. Annotate it with `<!-- allow:naming -->`.
+  The naming, forbidden-tools, and vendor-neutrality checks all honour that one
+  marker, so use it on the narrowest line that needs it.
 
 ## Vendor neutrality
 
 Present alternatives as options suited to different contexts. Superiority
-claims ("best", "beats X", "より優れている", "競合ツール", "優位性",
-"game-changer") are forbidden. State trade-offs symmetrically, including the
+claims ("best", "beats X", "より優れている", "競合ツール", "優位性", <!-- allow:naming -->
+"game-changer") are forbidden. State trade-offs symmetrically, including the <!-- allow:naming -->
 constraints of the option being recommended.
 
 ## Public-output safety
