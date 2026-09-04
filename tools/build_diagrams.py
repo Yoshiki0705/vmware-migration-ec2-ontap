@@ -1,0 +1,1197 @@
+#!/usr/bin/env python3
+"""Generate the architecture diagrams from a spec, one file per language and theme.
+
+Provenance: the machinery here — direct `.drawio` XML generation, icons embedded as
+`data:image/svg+xml,<base64>` data URIs, a keyed `LABELS` table with a CJK residue gate,
+`--check` against the committed files, and `stabilize_svg()` — follows
+`tools/build_diagrams.py` in the sibling repositories `S3-Burst-on-ONTAP-Files` and
+`FSx-for-ONTAP-Adoption-Playbook`. Nothing is re-derived here.
+
+Why the XML is written directly rather than through the draw.io MCP tools or the built-in
+`mxgraph.aws4.*` service shapes — each was tried in a sibling project and recorded there:
+
+* `insert_image_vertex` embeds icons in a form the draw.io CLI drops on export, so the
+  picture is right on screen and empty in the exported file;
+* `mxgraph.aws4.*` carries the 2019 icon generation, not the current quarterly package;
+* the data URI must be `data:image/svg+xml,<base64>`. Written as the MIME specification
+  would suggest, `data:image/svg+xml;base64,`, draw.io renders nothing and the export
+  still reports success.
+
+The `mxgraph.aws4.group` *container* shapes are a different thing from the aws4 icon set
+and are used: they draw a boundary, not a service mark.
+
+Icons are read from the AWS Architecture Icons package rather than copied in. AWS licenses
+the assets for use in a diagram, not for redistribution, so the package stays outside the
+repository and the committed artefacts are the generated `.drawio` and the exported
+images. `make ci` therefore does not run this; `make diagrams-check` does, locally.
+
+Note on ONTAP objects: an ONTAP Snapshot, a FlexClone and a LUN have no icon in the AWS
+package. Borrowing `Res_Amazon-Elastic-Block-Store_Snapshot_48` for an ONTAP Snapshot
+would attribute an ONTAP mechanism to Amazon EBS, which is the confusion figure 2 exists
+to remove, so they are drawn as named boxes instead.
+
+Run:
+  python3 tools/build_diagrams.py --check           # committed files still match the spec
+  python3 tools/build_diagrams.py --write           # regenerate every .drawio
+  python3 tools/build_diagrams.py --write --export  # and run the draw.io CLI for SVG + PNG
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import os
+import re
+import subprocess  # nosec B404  # fixed argv, never a shell string
+import sys
+import xml.etree.ElementTree as ET  # nosec B405  # noqa: S405  parses our own output
+from dataclasses import dataclass
+from pathlib import Path
+from xml.sax.saxutils import quoteattr
+
+ROOT = Path(__file__).resolve().parent.parent
+DIAGRAM_DIR = ROOT / "docs" / "_assets" / "diagrams"
+IMAGE_DIR = ROOT / "docs" / "_assets" / "images"
+PNG_DIR = IMAGE_DIR / "png"
+
+LANGS = ("ja", "en")
+THEMES = ("light", "dark")
+
+# Fixed so regeneration is byte-stable. A changing timestamp puts every diagram in every
+# diff and hides the edit that mattered.
+MODIFIED = "2026-09-05T00:00:00.000Z"
+DRAWIO_CLI = Path("/Applications/draw.io.app/Contents/MacOS/draw.io")
+
+# --- icons -------------------------------------------------------------------------------
+
+# Relative to the package root, with `{d}` standing for the release date and `{v}` for the
+# Light/Dark variant of the general resource icons. The date appears in every top-level
+# directory inside the package and changes quarterly, so it is read off the directory name
+# rather than written here.
+#
+# The `_Light` suffix on the general resource icons is easy to miss: `Res_Disk_48.svg`
+# does not exist, `Res_Disk_48_Light.svg` does.
+ICONS = {
+    "ec2": "Architecture-Service-Icons_{d}/Arch_Compute/64/Arch_Amazon-EC2_64.svg",
+    "fsx_ontap": (
+        "Architecture-Service-Icons_{d}/Arch_Storage/64/Arch_Amazon-FSx-for-NetApp-ONTAP_64.svg"
+    ),
+    # Present in the 07312026 package. An older package predating AWS Transform's GA does
+    # not carry it, which surfaces as a missing-icon failure rather than a wrong picture.
+    "transform": (
+        "Architecture-Service-Icons_{d}/Arch_Migration-Modernization/64/Arch_AWS-Transform_64.svg"
+    ),
+    "ebs": (
+        "Architecture-Service-Icons_{d}/Arch_Storage/64/Arch_Amazon-Elastic-Block-Store_64.svg"
+    ),
+    "privatelink": (
+        "Architecture-Service-Icons_{d}/Arch_Networking-Content-Delivery/64/"
+        "Arch_AWS-PrivateLink_64.svg"
+    ),
+    "secrets_manager": (
+        "Architecture-Service-Icons_{d}/Arch_Security-Identity/64/Arch_AWS-Secrets-Manager_64.svg"
+    ),
+    "nlb": (
+        "Resource-Icons_{d}/Res_Networking-Content-Delivery/"
+        "Res_Elastic-Load-Balancing_Network-Load-Balancer_48.svg"
+    ),
+    "ebs_volume": ("Resource-Icons_{d}/Res_Storage/Res_Amazon-Elastic-Block-Store_Volume_48.svg"),
+    "disk": "Resource-Icons_{d}/Res_General-Icons/Res_48_{v}/Res_Disk_48_{v}.svg",
+}
+
+# Native sizes. Rescaling is what the AWS icon guidelines forbid, so the size follows the
+# asset: 80 for an architecture (service) icon, 48 for a resource icon.
+ICON_SIZE = {
+    "ec2": 80,
+    "fsx_ontap": 80,
+    "transform": 80,
+    "ebs": 80,
+    "privatelink": 80,
+    "secrets_manager": 80,
+    "nlb": 48,
+    "ebs_volume": 48,
+    "disk": 48,
+}
+
+# --- palettes ----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Palette:
+    """Everything the theme changes, icon variant included, so one lookup covers it."""
+
+    variant: str
+    background: str
+    ink: str
+    cloud_stroke: str
+    vpc_stroke: str
+    box_stroke: str
+    frame_stroke: str
+    note_fill: str
+    note_ink: str
+
+
+PALETTES = {
+    "light": Palette(
+        variant="Light",
+        background="#FFFFFF",
+        ink="#232F3E",
+        cloud_stroke="#232F3E",
+        vpc_stroke="#8C4FFF",
+        box_stroke="#232F3E",
+        frame_stroke="#666666",
+        note_fill="#F5F5F5",
+        note_ink="#333333",
+    ),
+    "dark": Palette(
+        variant="Dark",
+        background="#232F3E",
+        ink="#FFFFFF",
+        cloud_stroke="#FFFFFF",
+        vpc_stroke="#C9A0FF",
+        box_stroke="#FFFFFF",
+        frame_stroke="#B0B8C1",
+        note_fill="#2E3B4E",
+        note_ink="#D5DBDB",
+    ),
+}
+
+# --- styles ------------------------------------------------------------------------------
+
+GROUP_POINTS = (
+    "points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],"
+    "[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]]"
+)
+
+
+def group_style(gr_icon: str, stroke: str, ink: str, dashed: bool) -> str:
+    return (
+        f"{GROUP_POINTS};outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;"
+        f"fontSize=12;fontStyle=1;fontColor={ink};shape=mxgraph.aws4.group;"
+        f"grIcon=mxgraph.aws4.{gr_icon};strokeColor={stroke};fillColor=none;"
+        f"verticalAlign=top;align=left;spacingLeft=30;spacingTop=4;"
+        f"dashed={1 if dashed else 0};"
+    )
+
+
+def icon_style(data_uri: str, ink: str) -> str:
+    return (
+        "sketch=0;html=1;shape=image;verticalLabelPosition=bottom;verticalAlign=top;"
+        "labelPosition=center;align=center;imageAspect=1;aspect=fixed;fontSize=11;"
+        f"fontColor={ink};image={data_uri};"
+    )
+
+
+def box_style(stroke: str, ink: str) -> str:
+    """A named ONTAP object with no icon in the AWS package.
+
+    A Snapshot, a FlexClone and a LUN are ONTAP mechanisms. The AWS package has snapshot
+    and volume icons, but they carry the Amazon EBS mark, and putting that mark on an
+    ONTAP Snapshot says Amazon EBS is doing the work. Naming the object in a box states
+    what it is without claiming a service.
+    """
+    return (
+        f"rounded=1;whiteSpace=wrap;html=1;strokeColor={stroke};fillColor=none;"
+        f"fontColor={ink};fontSize=11;verticalAlign=middle;align=center;"
+    )
+
+
+def frame_style(stroke: str, ink: str) -> str:
+    """A dashed grouping, used where an edge must arrive at a set rather than at one icon."""
+    return (
+        f"rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor={stroke};"
+        f"fillColor=none;fontColor={ink};fontSize=11;verticalAlign=top;align=center;"
+        "spacingTop=6;"
+    )
+
+
+def edge_style(ink: str, background: str) -> str:
+    """An edge and its label.
+
+    `labelBackgroundColor` is set explicitly because draw.io's default is an opaque white
+    plate behind every edge label. On the dark canvas the plate stays white while the text
+    turns white with it, so each label renders as a blank rectangle — visible only in the
+    exported PNG, which is why the standard says to look at the picture.
+    """
+    return (
+        "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;"
+        f"strokeColor={ink};strokeWidth=1;fontSize=11;fontColor={ink};"
+        f"labelBackgroundColor={background};"
+    )
+
+
+def note_style(fill: str, stroke: str, ink: str) -> str:
+    return (
+        f"rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor={stroke};"
+        f"fillColor={fill};fontColor={ink};fontSize=11;align=left;verticalAlign=top;"
+        "spacingLeft=10;spacingTop=6;"
+    )
+
+
+def text_style(ink: str) -> str:
+    return (
+        "text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;"
+        f"fontSize=11;fontStyle=1;fontColor={ink};"
+    )
+
+
+# Figure annotations are read as items, not as a paragraph: a marker, a headline that stops
+# at the noun, then the detail. `※` is the Japanese footnote marker and `*` the English one,
+# so the two languages differ here even though the structure does not.
+#
+# `<b>` and `<br>` reach draw.io because the cell style carries `html=1`. They are written
+# as literal characters and escaped on the way into the attribute; `quoteattr` also escapes
+# `"`, which plain `escape()` does not — an unescaped quote inside a value terminates the
+# attribute, and draw.io responds by silently dropping that cell and every cell after it
+# while still exporting successfully.
+def note_body(heading: str, items: tuple[tuple[str, str], ...], marker: str) -> str:
+    parts = [f"<b>{heading}</b>"]
+    for index, (headline, detail) in enumerate(items, start=1):
+        parts.append(f"{marker}{index} <b>{headline}</b>")
+        parts.append(detail)
+    return "<br>".join(parts)
+
+
+# --- labels ------------------------------------------------------------------------------
+
+# U+203B (※) sits outside every CJK block, so a reference marker would otherwise survive
+# untranslated into the English file with the residue gate reporting nothing. U+3000-303F
+# covers 、。「」 for the same reason.
+CJK = re.compile(r"[\u203b\u3000-\u303f\u3040-\u30ff\u4e00-\u9fff\uff00-\uffef]")
+
+# Service and protocol names stay as they are in both languages: the naming rule requires
+# the official name, and translating it would break it. Panel titles, footnotes and prose
+# are localized.
+LABELS: dict[str, dict[str, str]] = {
+    # --- figure 1 -------------------------------------------------------------------
+    "aws_cloud": {"ja": "AWS クラウド（ap-northeast-1）", "en": "AWS Cloud (ap-northeast-1)"},
+    "vpc": {"ja": "利用者の Amazon VPC", "en": "Customer Amazon VPC"},
+    "atx": {
+        "ja": "AWS Transform\n(for migrations)",
+        "en": "AWS Transform\n(for migrations)",
+    },
+    "source_ec2": {
+        "ja": "Amazon EC2\n（移行元 / エージェント）",
+        "en": "Amazon EC2\n(source / agent)",
+    },
+    "repl_ec2": {
+        "ja": "Amazon EC2\n（レプリケーションサーバー）",
+        "en": "Amazon EC2\n(replication server)",
+    },
+    "target_ec2": {
+        "ja": "Amazon EC2\n（カットオーバー先）",
+        "en": "Amazon EC2\n(cutover target)",
+    },
+    "ebs": {
+        "ja": "Amazon Elastic Block Store\n（ブートのステージング）",
+        "en": "Amazon Elastic Block Store\n(boot staging)",
+    },
+    "fsx_staging": {
+        "ja": "Amazon FSx for NetApp ONTAP\n（データのステージング）",
+        "en": "Amazon FSx for NetApp ONTAP\n(data staging)",
+    },
+    "staging_flexvol": {
+        "ja": "ステージング FlexVol\nLUN × 2（ディスクごと）",
+        "en": "Staging FlexVol\n2 LUNs (one per disk)",
+    },
+    "boot_volume": {"ja": "ブート 8 GiB", "en": "Boot 8 GiB"},
+    "privatelink": {"ja": "AWS PrivateLink", "en": "AWS PrivateLink"},
+    "nlb": {
+        "ja": "Network Load Balancer\n（自動作成 ※2）",
+        "en": "Network Load Balancer\n(auto-created *2)",
+    },
+    "secrets_manager": {
+        "ja": "AWS Secrets Manager\n（クライアント証明書）",
+        "en": "AWS Secrets Manager\n(client certificate)",
+    },
+    "mgmt_endpoint": {
+        "ja": "ONTAP 管理エンドポイント\nREST API / 443",
+        "en": "ONTAP management endpoint\nREST API / 443",
+    },
+    "control_plane": {"ja": "管理経路", "en": "Control path"},
+    "data_plane": {"ja": "データ経路", "en": "Data path"},
+    "e_agent": {"ja": "ブロックレプリケーション", "en": "Block replication"},
+    "e_boot": {"ja": "ブート ※1", "en": "Boot *1"},
+    "e_data": {"ja": "データ ※1", "en": "Data *1"},
+    "e_iscsi": {"ja": "iSCSI ※3", "en": "iSCSI *3"},
+    "e_cert": {"ja": "証明書を取得", "en": "Reads the certificate"},
+    "e_pl": {"ja": "証明書認証", "en": "Certificate auth"},
+    "notes1": {
+        "ja": note_body(
+            "補足",
+            (
+                (
+                    "ブートは常に Amazon EBS",
+                    "FSx for ONTAP に置けるのはデータボリュームのみ。ブートを FSx へ向ける設定は存在しない",
+                ),
+                (
+                    "Finalize 後も残る Network Load Balancer",
+                    "SETUP_FSX_PROXY が NLB と VPC エンドポイントサービスを自動作成する。Finalize では削除されず、手動撤去が必要",
+                ),
+                (
+                    "ゲストからは 2 パスの multipath デバイス",
+                    "HA ペアの各ノードに iSCSI LIF が 1 つ。ALUA で prio 50 が active、prio 10 が enabled",
+                ),
+            ),
+            "※",
+        ),
+        "en": note_body(
+            "Notes",
+            (
+                (
+                    "Boot always stays on Amazon EBS",
+                    "Only data volumes can live on FSx for ONTAP. There is no setting that points boot at FSx",
+                ),
+                (
+                    "The Network Load Balancer outlives Finalize",
+                    "SETUP_FSX_PROXY creates an NLB and a VPC endpoint service. Finalize does not delete them; teardown is manual",
+                ),
+                (
+                    "Two multipath devices in the guest",
+                    "One iSCSI LIF per HA pair node. Under ALUA, prio 50 is active and prio 10 enabled",
+                ),
+            ),
+            "*",
+        ),
+    },
+    # --- figure 2 -------------------------------------------------------------------
+    "svm": {
+        "ja": "Amazon FSx for NetApp ONTAP（検証用 SVM）",
+        "en": "Amazon FSx for NetApp ONTAP (verification SVM)",
+    },
+    "f2_staging": {
+        "ja": "ステージング FlexVol\n物理 8.03 GiB",
+        "en": "Staging FlexVol\n8.03 GiB physical",
+    },
+    "f2_snapshot": {
+        "ja": "ボリューム Snapshot\n（MGN の SNAPSHOT フェーズ）",
+        "en": "Volume Snapshot\n(the MGN SNAPSHOT phase)",
+    },
+    "f2_clone": {
+        "ja": "ターゲット FlexVol = FlexClone\n物理 35.5 MiB",
+        "en": "Target FlexVol = FlexClone\n35.5 MiB physical",
+    },
+    "f2_split": {
+        "ja": "スプリット後の独立した FlexVol\n物理 8.57 GiB",
+        "en": "Independent FlexVol after the split\n8.57 GiB physical",
+    },
+    "f2_deleted": {
+        "ja": "ステージング FlexVol は削除",
+        "en": "Staging FlexVol is deleted",
+    },
+    "f2_target_ec2": {
+        "ja": "Amazon EC2\n（無停止で稼働）",
+        "en": "Amazon EC2\n(runs without interruption)",
+    },
+    "e_snap": {"ja": "44 秒 ※1", "en": "44s *1"},
+    "e_clone": {"ja": "FlexClone 作成", "en": "FlexClone created"},
+    "e_split": {"ja": "Finalize: 60 秒未満 ※2", "en": "Finalize: under 60s *2"},
+    "e_delete": {"ja": "約 9 分後 ※3", "en": "About 9 min later *3"},
+    "e_serve": {"ja": "iSCSI 提供は継続 ※4", "en": "iSCSI keeps serving *4"},
+    "phase_snapshot": {"ja": "SNAPSHOT フェーズ", "en": "SNAPSHOT phase"},
+    "phase_launch": {"ja": "LAUNCH フェーズ", "en": "LAUNCH phase"},
+    "phase_finalize": {"ja": "Finalize", "en": "Finalize"},
+    "notes2": {
+        "ja": note_body(
+            "補足（8 GiB のデータで実測、2026-09-04、ONTAP 9.18.1P3D1）",
+            (
+                (
+                    "コピーではなくメタデータ操作",
+                    "SNAPSHOT フェーズはボリューム Snapshot の作成。8 GiB に対して 44 秒。データ量に対する伸び方は 1 点しか測っていない",
+                ),
+                (
+                    "容量が最大になるのは Finalize",
+                    "スプリットでクローンの物理消費が 35.5 MiB から 8.57 GiB へ。移行データ 1 本分の追加容量が必要",
+                ),
+                (
+                    "ステージング削除までの間隔",
+                    "スプリット完了から約 9 分。この間は両ボリュームが物理容量を占める（合計 約 16.6 GiB）",
+                ),
+                (
+                    "スプリットは無停止",
+                    "マウント維持、sha256 一致、I/O エラーとパスダウンはいずれも 0 件",
+                ),
+            ),
+            "※",
+        ),
+        "en": note_body(
+            "Notes (measured on 8 GiB of data, 2026-09-04, ONTAP 9.18.1P3D1)",
+            (
+                (
+                    "A metadata operation, not a copy",
+                    "The SNAPSHOT phase creates a volume Snapshot: 44s for 8 GiB. Growth against data volume was measured at one point only",
+                ),
+                (
+                    "Finalize is the point of peak capacity",
+                    "The split takes the clone from 35.5 MiB to 8.57 GiB physical. One extra copy of the migrated data is required",
+                ),
+                (
+                    "The gap before staging is deleted",
+                    "About 9 minutes after the split completes. Both volumes hold physical capacity in that window (about 16.6 GiB total)",
+                ),
+                (
+                    "The split is non-disruptive",
+                    "Mounts held, sha256 matched, and zero I/O errors or path-down events",
+                ),
+            ),
+            "*",
+        ),
+    },
+}
+
+
+def label(key: str, lang: str) -> str:
+    """Look up a label, refusing to emit Japanese into an English diagram.
+
+    Two failures are caught here rather than by looking at the picture. A spec naming a
+    label with no entry stops the build instead of drawing an empty string; and a new
+    Japanese label copied into the English column stops it too. The second is the one that
+    would otherwise ship: the file renders, the export succeeds, and only a reader who
+    does not read Japanese finds out.
+    """
+    try:
+        value = LABELS[key][lang]
+    except KeyError as exc:
+        raise SystemExit(f"build_diagrams: no {lang} label for {key!r}") from exc
+    if lang != "ja" and CJK.search(value):
+        raise SystemExit(
+            f"build_diagrams: the {lang} label for {key!r} still contains Japanese: {value[:60]!r}"
+        )
+    return value
+
+
+# --- spec --------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Node:
+    cid: str
+    icon: str
+    label: str
+    x: int
+    y: int
+
+
+@dataclass(frozen=True)
+class Group:
+    cid: str
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+    gr_icon: str = "group_aws_cloud"
+    kind: str = "cloud"
+    dashed: bool = False
+
+
+@dataclass(frozen=True)
+class Box:
+    cid: str
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+@dataclass(frozen=True)
+class Frame:
+    cid: str
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+@dataclass(frozen=True)
+class Text:
+    cid: str
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+@dataclass(frozen=True)
+class Note:
+    cid: str
+    label: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+@dataclass(frozen=True)
+class Edge:
+    cid: str
+    source: str
+    target: str
+    label: str = ""
+    # Fixed connection points as (x, y) fractions of the shape. Needed because an edge
+    # left to route itself takes the shortest orthogonal path, which is regularly straight
+    # through an icon or through the label under it. A label sits *below* its icon box, so
+    # an edge must never leave a box downwards.
+    exit_at: tuple[float, float] | None = None
+    entry_at: tuple[float, float] | None = None
+    both_ways: bool = False
+    dashed: bool = False
+    # (along, dx, dy). `along` runs from -1 at the source to +1 at the target, so the
+    # midpoint is 0 — not 0.5. Passing 0.5 puts the label three quarters along, which is
+    # how a label ends up on top of the icon it was meant to sit beside.
+    offset: tuple[float, int, int] | None = None
+    points: tuple[tuple[int, int], ...] = ()
+
+
+@dataclass(frozen=True)
+class Diagram:
+    name: str
+    diagram_id: str
+    width: int
+    height: int
+    groups: tuple[Group, ...] = ()
+    frames: tuple[Frame, ...] = ()
+    boxes: tuple[Box, ...] = ()
+    texts: tuple[Text, ...] = ()
+    nodes: tuple[Node, ...] = ()
+    edges: tuple[Edge, ...] = ()
+    notes: tuple[Note, ...] = ()
+
+    def filename(self, lang: str, theme: str) -> str:
+        # Japanese keeps the bare name: a published blog post links the exported PNG by
+        # this exact path, so renaming either file breaks a live image.
+        parts = [self.name]
+        if lang != "ja":
+            parts.append(lang)
+        if theme != "light":
+            parts.append(theme)
+        return "-".join(parts) + ".drawio"
+
+
+def centred(icon: str, cx: int, cy: int) -> tuple[int, int]:
+    half = ICON_SIZE[icon] // 2
+    return cx - half, cy - half
+
+
+def _overview() -> Diagram:
+    """What the verification actually built, with the control path drawn separately.
+
+    The control path is drawn because it is the part that surprised: MGN creates a Network
+    Load Balancer and a VPC endpoint service inside the customer VPC, and the public
+    documentation describes the outcome ("PrivateLink connectivity") without naming the
+    resources. Drawing only the data path is what left the NLB out of cost estimates.
+
+    Boot and data leave the replication server to different destinations, so those two
+    edges are labelled rather than colour-coded: colour cannot carry meaning under the
+    diagram standard, so the meaning has to be in the label.
+    """
+    return Diagram(
+        name="atx-fsxn-migration-overview",
+        diagram_id="atx-fsxn-migration-overview",
+        width=1500,
+        height=900,
+        groups=(
+            Group("aws_cloud", "aws_cloud", 40, 40, 1420, 620),
+            Group(
+                "vpc",
+                "vpc",
+                80,
+                90,
+                1000,
+                540,
+                gr_icon="group_vpc2",
+                kind="vpc",
+                dashed=True,
+            ),
+        ),
+        # A frame title sits at the top of the frame, so the first icon row starts far
+        # enough below the top edge that the title is not covered by an icon.
+        frames=(
+            Frame("data_plane", "data_plane", 110, 140, 940, 250),
+            Frame("control_plane", "control_plane", 110, 420, 940, 190),
+        ),
+        boxes=(
+            Box("boot_volume", "boot_volume", 690, 185, 180, 40),
+            Box("staging_flexvol", "staging_flexvol", 680, 300, 190, 54),
+            Box("mgmt_endpoint", "mgmt_endpoint", 150, 470, 220, 54),
+        ),
+        nodes=(
+            Node("source_ec2", "ec2", "source_ec2", *centred("ec2", 180, 260)),
+            Node("repl_ec2", "ec2", "repl_ec2", *centred("ec2", 420, 260)),
+            Node("ebs", "ebs", "ebs", *centred("ebs", 600, 205)),
+            Node("fsx_staging", "fsx_ontap", "fsx_staging", *centred("fsx_ontap", 600, 327)),
+            Node("target_ec2", "ec2", "target_ec2", *centred("ec2", 1010, 260)),
+            # The control path runs right to left so each hop is adjacent to the next.
+            # Laid out left to right, the AWS Transform edge crossed the management
+            # endpoint box on its way to AWS PrivateLink.
+            Node("nlb", "nlb", "nlb", *centred("nlb", 480, 497)),
+            Node(
+                "privatelink",
+                "privatelink",
+                "privatelink",
+                *centred("privatelink", 700, 497),
+            ),
+            Node(
+                "secrets_manager",
+                "secrets_manager",
+                "secrets_manager",
+                *centred("secrets_manager", 1250, 260),
+            ),
+            Node("atx", "transform", "atx", *centred("transform", 1250, 497)),
+        ),
+        edges=(
+            Edge(
+                "e1",
+                "source_ec2",
+                "repl_ec2",
+                "e_agent",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
+                offset=(0, 0, -14),
+            ),
+            Edge(
+                "e2",
+                "repl_ec2",
+                "ebs",
+                "e_boot",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
+                offset=(-0.45, 0, -14),
+            ),
+            Edge(
+                "e3",
+                "repl_ec2",
+                "fsx_staging",
+                "e_data",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
+                offset=(-0.45, 0, 14),
+            ),
+            Edge("e4", "ebs", "boot_volume", exit_at=(1, 0.5), entry_at=(0, 0.5)),
+            Edge("e5", "fsx_staging", "staging_flexvol", exit_at=(1, 0.5), entry_at=(0, 0.5)),
+            # No label: the boot box and the Amazon EBS icon beside it already say what
+            # this leg is, and the gap to the target has no clean midpoint for one.
+            Edge("e6", "boot_volume", "target_ec2", exit_at=(1, 0.5), entry_at=(0, 0.3)),
+            Edge(
+                "e7",
+                "staging_flexvol",
+                "target_ec2",
+                "e_iscsi",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.7),
+                offset=(0, 0, 14),
+            ),
+            Edge(
+                "e8",
+                "atx",
+                "privatelink",
+                "e_pl",
+                exit_at=(0, 0.5),
+                entry_at=(1, 0.5),
+                offset=(0, 0, -14),
+            ),
+            Edge("e9", "privatelink", "nlb", exit_at=(0, 0.5), entry_at=(1, 0.5)),
+            Edge("e10", "nlb", "mgmt_endpoint", exit_at=(0, 0.5), entry_at=(1, 0.5)),
+            Edge(
+                "e11",
+                "atx",
+                "secrets_manager",
+                "e_cert",
+                exit_at=(0.5, 0),
+                entry_at=(0.5, 1),
+                dashed=True,
+                offset=(0, 62, 0),
+            ),
+        ),
+        notes=(Note("notes1", "notes1", 80, 690, 1380, 160),),
+    )
+
+
+def _finalize() -> Diagram:
+    """The Snapshot / FlexClone / split lifecycle, which is where the capacity goes.
+
+    Drawn because the numbers invert across Finalize and a reader planning capacity from
+    the pre-Finalize figure will under-provision. The three ONTAP objects are boxes rather
+    than icons: see `box_style`.
+    """
+    return Diagram(
+        name="atx-fsxn-finalize-flexclone",
+        diagram_id="atx-fsxn-finalize-flexclone",
+        width=1480,
+        height=790,
+        groups=(Group("svm", "svm", 40, 150, 1180, 380, dashed=True),),
+        boxes=(
+            Box("f2_staging", "f2_staging", 110, 220, 210, 60),
+            Box("f2_snapshot", "f2_snapshot", 110, 390, 210, 60),
+            Box("f2_clone", "f2_clone", 470, 390, 240, 60),
+            Box("f2_split", "f2_split", 860, 390, 240, 60),
+            Box("f2_deleted", "f2_deleted", 860, 220, 240, 60),
+        ),
+        texts=(
+            Text("phase_snapshot", "phase_snapshot", 90, 320, 250, 30),
+            Text("phase_launch", "phase_launch", 450, 320, 280, 30),
+            Text("phase_finalize", "phase_finalize", 840, 320, 280, 30),
+        ),
+        # No free-standing FSx for ONTAP icon: the group is already titled with the
+        # service name, and an icon carrying no label breaks the label rule.
+        nodes=(
+            Node(
+                "f2_target_ec2",
+                "ec2",
+                "f2_target_ec2",
+                *centred("ec2", 1310, 420),
+            ),
+        ),
+        edges=(
+            Edge(
+                "f1",
+                "f2_staging",
+                "f2_snapshot",
+                "e_snap",
+                exit_at=(0.5, 1),
+                entry_at=(0.5, 0),
+                offset=(-0.55, 44, 0),
+            ),
+            Edge(
+                "f2",
+                "f2_snapshot",
+                "f2_clone",
+                "e_clone",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
+                offset=(0, 0, -14),
+            ),
+            Edge(
+                "f3",
+                "f2_clone",
+                "f2_split",
+                "e_split",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
+                offset=(0, 0, -14),
+            ),
+            Edge(
+                "f4",
+                "f2_staging",
+                "f2_deleted",
+                "e_delete",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
+                dashed=True,
+                offset=(0, 0, -14),
+            ),
+            Edge(
+                "f5",
+                "f2_split",
+                "f2_target_ec2",
+                "e_serve",
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
+                offset=(0, 0, -14),
+            ),
+        ),
+        notes=(Note("notes2", "notes2", 40, 570, 1400, 190),),
+    )
+
+
+DIAGRAMS = (_overview(), _finalize())
+
+# --- rendering ---------------------------------------------------------------------------
+
+
+def icon_package(explicit: str | None) -> Path:
+    if explicit:
+        path = Path(explicit).expanduser()
+        if not path.is_dir():
+            raise SystemExit(f"build_diagrams: --icons {path} is not a directory")
+        return path
+    env = os.environ.get("AWS_ICON_PACKAGE")
+    if env:
+        return icon_package(env)
+    for candidate in sorted(Path.home().glob("Downloads/Icon-package_*"), reverse=True):
+        if candidate.is_dir():
+            return candidate
+    raise SystemExit(
+        "build_diagrams: the AWS Architecture Icons package was not found.\n"
+        "  Download the current quarterly release from "
+        "https://aws.amazon.com/architecture/icons/ and either leave it in ~/Downloads\n"
+        "  or pass --icons <path> / set AWS_ICON_PACKAGE. The package is not committed\n"
+        "  here, which is why the generated .drawio files are."
+    )
+
+
+def package_date(package: Path) -> str:
+    """The release date in the package directory name, e.g. Icon-package_07312026.<hash>.
+
+    Read rather than configured, so a new quarterly package needs no edit. A name without
+    a date is not the package this tool expects, and saying so beats reporting nine
+    missing icons.
+    """
+    match = re.search(r"Icon-package_(\d{8})", package.name)
+    if not match:
+        raise SystemExit(
+            f"build_diagrams: cannot read a release date from {package.name!r}.\n"
+            "  Expected a directory named like Icon-package_07312026.<hash>"
+        )
+    return match.group(1)
+
+
+def data_uris(package: Path) -> dict[tuple[str, str], str]:
+    """Read every icon, per theme, and build its draw.io data URI.
+
+    Keyed by (icon, theme) because the general resource icons ship a Light and a Dark file
+    and the dark diagram has to carry the Dark bytes. Service icons have one file and are
+    read twice; that costs nothing and keeps the lookup uniform.
+
+    The comma-only URI form is required. `data:image/svg+xml;base64,` exports a
+    broken-image placeholder rather than failing, so the export "succeeds" and only
+    looking at the picture shows it.
+    """
+    uris: dict[tuple[str, str], str] = {}
+    date = package_date(package)
+    for theme in THEMES:
+        variant = PALETTES[theme].variant
+        for key, relative in ICONS.items():
+            resolved = relative.format(d=date, v=variant)
+            path = package / resolved
+            if not path.is_file():
+                raise SystemExit(f"build_diagrams: {resolved} missing from {package}")
+            encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+            uris[(key, theme)] = f"data:image/svg+xml,{encoded}"
+    return uris
+
+
+def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], str]) -> str:
+    p = PALETTES[theme]
+    suffix = "".join(
+        part
+        for part in (
+            f"-{lang}" if lang != "ja" else "",
+            f"-{theme}" if theme != "light" else "",
+        )
+    )
+    name = f"{diagram.name}{suffix}"
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        (
+            f'<mxfile host="app.diagrams.net" modified="{MODIFIED}" '
+            'agent="build_diagrams.py" version="24.0.0" type="device">'
+        ),
+        f'  <diagram id="{diagram.diagram_id}{suffix}" name="{name}">',
+        (
+            '    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" '
+            'tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" '
+            f'pageWidth="{diagram.width}" pageHeight="{diagram.height}" '
+            f'background="{p.background}" math="0" shadow="0">'
+        ),
+        "      <root>",
+        '        <mxCell id="0" />',
+        '        <mxCell id="1" parent="0" />',
+    ]
+
+    def vertex(cid: str, value: str, style: str, x: int, y: int, w: int, h: int) -> None:
+        lines.append(
+            f"        <mxCell id={quoteattr(cid)} value={quoteattr(value)} "
+            f'style={quoteattr(style)} vertex="1" parent="1">'
+        )
+        lines.append(
+            f'          <mxGeometry x="{x}" y="{y}" width="{w}" height="{h}" as="geometry" />'
+        )
+        lines.append("        </mxCell>")
+
+    for group in diagram.groups:
+        stroke = p.cloud_stroke if group.kind == "cloud" else p.vpc_stroke
+        vertex(
+            group.cid,
+            label(group.label, lang),
+            group_style(group.gr_icon, stroke, p.ink, group.dashed),
+            group.x,
+            group.y,
+            group.width,
+            group.height,
+        )
+    # Frames before nodes so the icons draw on top of the container they sit in.
+    for frame in diagram.frames:
+        vertex(
+            frame.cid,
+            label(frame.label, lang),
+            frame_style(p.frame_stroke, p.ink),
+            frame.x,
+            frame.y,
+            frame.width,
+            frame.height,
+        )
+    for box in diagram.boxes:
+        vertex(
+            box.cid,
+            label(box.label, lang),
+            box_style(p.box_stroke, p.ink),
+            box.x,
+            box.y,
+            box.width,
+            box.height,
+        )
+    for text in diagram.texts:
+        vertex(
+            text.cid,
+            label(text.label, lang),
+            text_style(p.ink),
+            text.x,
+            text.y,
+            text.width,
+            text.height,
+        )
+    for node in diagram.nodes:
+        size = ICON_SIZE[node.icon]
+        vertex(
+            node.cid,
+            label(node.label, lang) if node.label else "",
+            icon_style(uris[(node.icon, theme)], p.ink),
+            node.x,
+            node.y,
+            size,
+            size,
+        )
+    for edge in diagram.edges:
+        style = edge_style(p.ink, p.background)
+        if edge.exit_at is not None:
+            style += f"exitX={edge.exit_at[0]};exitY={edge.exit_at[1]};exitDx=0;exitDy=0;"
+        if edge.entry_at is not None:
+            style += f"entryX={edge.entry_at[0]};entryY={edge.entry_at[1]};entryDx=0;entryDy=0;"
+        if edge.both_ways:
+            style += "startArrow=open;startFill=0;"
+        if edge.dashed:
+            style += "dashed=1;dashPattern=8 4;"
+        value = label(edge.label, lang) if edge.label else ""
+        lines.append(
+            f"        <mxCell id={quoteattr(edge.cid)} value={quoteattr(value)} "
+            f'style={quoteattr(style)} edge="1" source={quoteattr(edge.source)} '
+            f'target={quoteattr(edge.target)} parent="1">'
+        )
+        if edge.offset is not None:
+            along, dx, dy = edge.offset
+            lines.append(f'          <mxGeometry x="{along}" relative="1" as="geometry">')
+            lines.append(f'            <mxPoint as="offset" x="{dx}" y="{dy}" />')
+            lines.append("          </mxGeometry>")
+        else:
+            lines.append('          <mxGeometry relative="1" as="geometry" />')
+        lines.append("        </mxCell>")
+    for note in diagram.notes:
+        vertex(
+            note.cid,
+            label(note.label, lang),
+            note_style(p.note_fill, p.frame_stroke, p.note_ink),
+            note.x,
+            note.y,
+            note.width,
+            note.height,
+        )
+
+    lines += ["      </root>", "    </mxGraphModel>", "  </diagram>", "</mxfile>", ""]
+    return "\n".join(lines)
+
+
+# --- checking ----------------------------------------------------------------------------
+
+
+def cells(xml: str) -> list[tuple[str, str, str, str]]:
+    """Reduce a document to the parts a reader sees, so formatting is not compared."""
+    out = []
+    root = ET.fromstring(xml).find(".//root")  # nosec B314  our own generated file
+    if root is None:
+        raise SystemExit("build_diagrams: no <root> in the document")
+    for cell in root.iter("mxCell"):
+        geometry = cell.find("mxGeometry")
+        geo = (
+            " ".join(f"{k}={v}" for k, v in sorted(geometry.attrib.items()))
+            if geometry is not None
+            else ""
+        )
+        style = re.sub(
+            r"image=data:image/svg\+xml,([A-Za-z0-9+/=]{16})[A-Za-z0-9+/=]*",
+            r"image=<\1...>",
+            cell.get("style") or "",
+        )
+        out.append((cell.get("id") or "", cell.get("value") or "", style, geo))
+    return out
+
+
+def check(uris: dict[tuple[str, str], str]) -> int:
+    problems = 0
+    for diagram in DIAGRAMS:
+        for lang in LANGS:
+            for theme in THEMES:
+                path = DIAGRAM_DIR / diagram.filename(lang, theme)
+                if not path.is_file():
+                    print(f"  missing   {path.relative_to(ROOT)}", file=sys.stderr)
+                    problems += 1
+                    continue
+                want = cells(render(diagram, lang, theme, uris))
+                got = cells(path.read_text(encoding="utf-8"))
+                if want == got:
+                    continue
+                problems += 1
+                print(f"  differs   {path.relative_to(ROOT)}", file=sys.stderr)
+                for a, b in zip(want, got, strict=False):
+                    if a != b:
+                        print(f"      spec: {a}", file=sys.stderr)
+                        print(f"      file: {b}", file=sys.stderr)
+                if len(want) != len(got):
+                    print(
+                        f"      cell count spec={len(want)} file={len(got)}",
+                        file=sys.stderr,
+                    )
+    if problems:
+        print(
+            "\n  A generated diagram was edited by hand, or the spec moved without a "
+            "regenerate.\n  Run: python3 tools/build_diagrams.py --write --export",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"diagrams: {len(DIAGRAMS) * len(LANGS) * len(THEMES)} file(s) match the spec")
+    return 0
+
+
+# --- exporting ---------------------------------------------------------------------------
+
+# draw.io stamps a fresh random element id into every SVG export and uses it twice. Left
+# alone, re-exporting an unchanged diagram still produces a one-line diff in every SVG,
+# which is the same failure the fixed MODIFIED timestamp exists to prevent: the files that
+# did not change bury the one that did.
+SVG_RANDOM_ID = re.compile(r"ge-svg-[A-Za-z0-9_-]+")
+
+
+def stabilize_svg(target: Path) -> None:
+    text = target.read_text(encoding="utf-8")
+    stabilized = SVG_RANDOM_ID.sub(f"ge-svg-{target.stem}", text)
+    if stabilized != text:
+        target.write_text(stabilized, encoding="utf-8")
+
+
+def export(diagram: Diagram, lang: str, theme: str) -> None:
+    source = DIAGRAM_DIR / diagram.filename(lang, theme)
+    stem = source.stem
+    if not DRAWIO_CLI.is_file():
+        print(f"  draw.io CLI not found at {DRAWIO_CLI}; skipping export", file=sys.stderr)
+        return
+    runs: tuple[tuple[Path, list[str]], ...] = (
+        # PNG at 2x for the blog posts, which do not render SVG reliably. Both themes get
+        # one: a raster cannot adapt to the reader's colour scheme.
+        (PNG_DIR / f"{stem}@2x.png", ["--format", "png", "--scale", "2"]),
+    )
+    if theme == "light":
+        # One SVG per figure and language. draw.io writes colours as CSS light-dark()
+        # pairs, so the light export already serves a dark-mode viewer; a second SVG from
+        # the dark source would hand a dark-mode reader an inverted (light) picture.
+        runs = ((IMAGE_DIR / f"{stem}.svg", ["--format", "svg", "--embed-svg-images"]),) + runs
+    for target, extra in runs:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(  # nosec B603  fixed binary, no shell
+            [
+                str(DRAWIO_CLI),
+                "--export",
+                "--border",
+                "12",
+                *extra,
+                "--output",
+                str(target),
+                str(source),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        if not target.is_file() or target.stat().st_size == 0:
+            raise SystemExit(f"build_diagrams: export produced nothing: {target}")
+        if target.suffix == ".svg":
+            stabilize_svg(target)
+        print(f"  exported  {target.relative_to(ROOT)} ({target.stat().st_size // 1024} KB)")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--write", action="store_true", help="regenerate the .drawio files")
+    parser.add_argument("--export", action="store_true", help="also export SVG and PNG")
+    parser.add_argument("--check", action="store_true", help="compare committed files to the spec")
+    parser.add_argument("--icons", help="path to the AWS Architecture Icons package")
+    args = parser.parse_args()
+
+    if not (args.write or args.check):
+        parser.error("give --write or --check")
+
+    uris = data_uris(icon_package(args.icons))
+
+    if args.check:
+        return check(uris)
+
+    DIAGRAM_DIR.mkdir(parents=True, exist_ok=True)
+    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    seen: set[str] = set()
+    for diagram in DIAGRAMS:
+        for lang in LANGS:
+            for theme in THEMES:
+                path = DIAGRAM_DIR / diagram.filename(lang, theme)
+                xml = render(diagram, lang, theme, uris)
+                path.write_text(xml, encoding="utf-8")
+                # A parse gate, because a broken attribute makes draw.io drop that cell
+                # and every cell after it while still exporting successfully.
+                try:
+                    ET.parse(path)  # nosec B314  our own generated file
+                except ET.ParseError as error:
+                    raise SystemExit(
+                        f"build_diagrams: {path} is not well-formed: {error}"
+                    ) from error
+                # Counting the list we built would report success even when a cell never
+                # landed. Assert presence in what was written.
+                for cid in (
+                    [c.cid for c in diagram.groups]
+                    + [c.cid for c in diagram.frames]
+                    + [c.cid for c in diagram.boxes]
+                    + [c.cid for c in diagram.texts]
+                    + [c.cid for c in diagram.nodes]
+                    + [c.cid for c in diagram.edges]
+                    + [c.cid for c in diagram.notes]
+                ):
+                    if f'id="{cid}"' not in xml:
+                        raise SystemExit(f"build_diagrams: cell {cid!r} missing from {path}")
+                print(f"  wrote     {path.relative_to(ROOT)}")
+                if args.export:
+                    export(diagram, lang, theme)
+        for group in diagram.groups:
+            seen.add(group.label)
+        for collection in (diagram.frames, diagram.boxes, diagram.texts, diagram.notes):
+            for item in collection:
+                seen.add(item.label)
+        for node in diagram.nodes:
+            if node.label:
+                seen.add(node.label)
+        for edge in diagram.edges:
+            if edge.label:
+                seen.add(edge.label)
+
+    # A mapping nothing uses is a mapping nobody maintains, and the next reader cannot
+    # tell a stale entry from one whose figure is still to come.
+    unused = sorted(set(LABELS) - seen)
+    if unused:
+        for key in unused:
+            print(f"  unused LABELS entry: {key!r}", file=sys.stderr)
+        raise SystemExit(f"{len(unused)} LABELS entr(ies) match no label in any figure")
+
+    stray = [
+        path
+        for path in ROOT.rglob("*")
+        if path.is_file()
+        and re.match(r"(Arch_|Res_|Icon-package)", path.name)
+        and not {".venv", ".git", "node_modules"} & set(path.parts)
+    ]
+    if stray:
+        raise SystemExit(f"build_diagrams: icon-library files must not be committed: {stray[:5]}")
+
+    print(f"diagrams: OK ({len(seen)} distinct labels, {len(LABELS)} in LABELS)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
