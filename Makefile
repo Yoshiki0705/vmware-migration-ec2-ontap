@@ -99,8 +99,20 @@ agent-config: ## steering / skills / hooks の到達性（グローバル検証�
 context-budget: ## 常時ロードコンテキストの上限とローダーの薄さ
 	$(PYTHON) scripts/check_agent_context_budget.py
 
+.PHONY: diagram-assets
+diagram-assets: ## 図の成果物の一貫性（アイコン非同梱・欠落・EN への日本語残留）
+	$(PYTHON) scripts/check_diagram_assets.py
+
+.PHONY: diagrams
+diagrams: ## 図を再生成し SVG / PNG を書き出す（AWS アイコンパッケージと draw.io が必要）
+	$(PYTHON) tools/build_diagrams.py --write --export
+
+.PHONY: diagrams-check
+diagrams-check: ## committed の図が spec と一致するか（AWS アイコンパッケージが必要）
+	$(PYTHON) tools/build_diagrams.py --check
+
 .PHONY: drift
-drift: agent-config context-budget ## 逆戻り検出（設定の到達性 + 常時ロード予算）
+drift: agent-config context-budget diagram-assets ## 逆戻り検出（設定の到達性 + 常時ロード予算 + 図の成果物）
 
 .PHONY: ci
 ci: lint format-check test cfn-lint security headings drift ## CI が呼ぶ集約ターゲット
