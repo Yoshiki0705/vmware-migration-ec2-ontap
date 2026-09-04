@@ -107,7 +107,10 @@ jobs:
           while IFS= read -r file; do
             [ -z "$file" ] && continue
             [ ! -f "$file" ] && continue
-            HITS=$(grep -nE 'Workload Factory|NetApp Console|BlueXP' "$file" || true)
+            # Same allow:naming escape as the naming check. A document that
+            # states which products not to propose, and a verbatim citation
+            # title, both have to name them.
+            HITS=$(grep -nE 'Workload Factory|NetApp Console|BlueXP' "$file" | grep -v 'allow:naming' || true)
             if [ -n "$HITS" ]; then
               echo "::error file=$file::Forbidden tool reference found"
               echo "$HITS" | while IFS= read -r line; do
@@ -131,7 +134,9 @@ jobs:
           while IFS= read -r file; do
             [ -z "$file" ] && continue
             [ ! -f "$file" ] && continue
-            HITS=$(grep -nE '最強|game-changer|ゲームチェンジャー|競合ツール|優位性|より優れ|is better than|is superior to' "$file" || true)
+            # Same allow:naming escape: the document that forbids these phrases
+            # has to quote them.
+            HITS=$(grep -nE '最強|game-changer|ゲームチェンジャー|競合ツール|優位性|より優れ|is better than|is superior to' "$file" | grep -v 'allow:naming' || true)
             if [ -n "$HITS" ]; then
               echo "::error file=$file::Vendor neutrality violation found"
               echo "$HITS" | while IFS= read -r line; do

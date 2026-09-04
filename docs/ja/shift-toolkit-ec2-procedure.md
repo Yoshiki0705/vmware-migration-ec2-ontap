@@ -249,7 +249,7 @@
 
 ### 2.4 Shift Toolkit 有効化
 
-1. `ng-shift-toolkit-support@netapp.com` に連絡して EC2 Early Preview を有効化
+1. NetApp のサポート窓口（アドレスは Shift Toolkit v8.0 ブログに記載）に連絡して EC2 Early Preview を有効化
 2. Shift Toolkit インストールディレクトリの `config.json` を編集:
    ```json
    { "enableAmazonEC2": true }

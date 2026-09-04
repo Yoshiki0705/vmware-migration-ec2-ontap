@@ -135,7 +135,7 @@ Confirmed from the procedure's migration flow:
 
 ## Notes on Confirmation Methods
 
-- Shift Toolkit v8.0 Early Preview enablement: Contact `ng-shift-toolkit-support@netapp.com` (per blog)
+- Shift Toolkit v8.0 Early Preview enablement: contact the NetApp support alias (address given in the Shift Toolkit v8.0 blog)
 - Shift Toolkit download: [MySupport Shift Toolkit page](https://mysupport.netapp.com/site/tools/tool-eula/netapp-shift-toolkit) (NetApp Support account required)
 - AWS Transform FSx for ONTAP destination UI: Available within the VMware migration wave planning flow (requires job creation and discovery data ingestion)
 

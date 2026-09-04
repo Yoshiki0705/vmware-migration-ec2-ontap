@@ -222,7 +222,7 @@ AWS Transform for VMware は [16 リージョンで利用可能](https://aws.ama
 
 > 詳細は [`research.md` セクション 3.2.3](./research.md) を参照。以下は最新情報に基づくサマリー。
 
-### クイック判断フロー（1分で決められる）
+### クイック判断フロー（所要 1 分）
 
 ```text
 Q1: ソース VM は ONTAP NFS データストア上にあるか?
@@ -257,7 +257,7 @@ Q1: ソース VM は ONTAP NFS データストア上にあるか?
 | **ネットワーク変換** | AI 自動生成（vSwitch → VPC/SG） | 手動（Blueprint で Network Mapping） |
 | **成熟度** | GA（基本機能）+ FSx for ONTAP 宛先は Public Preview | Early Preview |
 
-### 組み合わせパターン（排他ではない）
+### 組み合わせパターン（非排他）
 
 ```text
 パターン A: AWS Transform 単体
@@ -343,7 +343,7 @@ aws mgn archive-source-server --source-server-id s-xxxxxxxxx
 
 **対処**: 原因特定（ネットワーク / 認証 / ディスク容量）→ 修正後に再デプロイ。
 
-### 7.3 レプリケーション失敗 / lag が解消しない
+### 7.3 レプリケーション失敗 / lag の未解消
 
 エージェントは稼働しているが、レプリケーションが完了しない or エラーが出るケース。
 

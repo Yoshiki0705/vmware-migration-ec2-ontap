@@ -28,8 +28,6 @@
 | [DR SnapMirror Runbook](docs/en/dr-snapmirror-runbook.md) | DR design using SnapMirror |
 | [PoC Plan Template](docs/en/poc-plan-template.md) | Success criteria & verification plan |
 | [NetApp Q&A](docs/en/netapp-questions.md) | Questions for NetApp |
-| [Blog #1: Why EC2 + FSx for ONTAP](docs/en/blog-01-why-ec2-fsxn.md) | Article draft |
-| [Blog #2: Shift Toolkit + FlexClone](docs/en/blog-02-shift-toolkit-flexclone.md) | Article draft |
 
 </details>
 

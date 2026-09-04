@@ -28,7 +28,7 @@ The verification focuses not just on "migrating from VMware to AWS" but on confi
 - **Confirmed scope**: Both OS disk (→ EBS → AMI) and data disk (→ FSx for ONTAP iSCSI LUN) are covered
 - **OS disk method**: Two approaches — EBS Direct APIs (recommended, next drop) and VM Import/Export (current Preview)
 - **Drivers**: cloud-init (Linux) / EC2Launch v2 (Windows) automatically injected
-- **Requires**: NetApp-side enablement via `ng-shift-toolkit-support@netapp.com`
+- **Requires**: NetApp-side enablement via the NetApp support alias (address given in the Shift Toolkit v8.0 blog)
 
 ### Tool Selection Guidance
 

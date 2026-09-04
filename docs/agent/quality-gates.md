@@ -1,0 +1,85 @@
+# Quality gates
+
+Every gate is a `make` target. CI calls those targets rather than invoking tools
+directly, and the path lists live in Makefile variables, so a local run and a CI
+run inspect the same tree with the same tool version.
+
+```bash
+make install    # .venv を作り requirements*.txt を固定版で導入
+make tools      # 各ツールの解決先とバージョン（ローカルと CI の差を見る）
+make ci         # lint format-check test cfn-lint security drift
+make drift      # 設定の到達性 + 常時ロードコンテキスト予算
+```
+
+## Gate inventory
+
+| Target | Tool | Scope variable |
+|---|---|---|
+| `lint`, `format-check` | ruff | `PY_PATHS` |
+| `test` | pytest | `TEST_DIRS` |
+| `cfn-lint` | cfn-lint | `TEMPLATE_GLOB` |
+| `security` | bandit (`-ll`, Medium 以上) | `PY_PATHS` |
+| `headings` | `tools/check_heading_style.py` (selftest, then scan) | `HEADING_CHECK`; walk scope is the script's `SKIP` set |
+| `shellcheck` | shellcheck | `SHELL_PATHS` |
+| `agent-config` | global `validate_agent_config.py` | steering / skills / hooks |
+| `context-budget` | `scripts/check_agent_context_budget.py` | AGENTS.md, `.kiro/steering/` |
+
+`shellcheck` is not part of `ci` because it is a system binary rather than a
+pinned Python package; CI runs it as a separate job.
+
+## Tool versions
+
+`requirements.txt` holds what the scripts need at runtime. `requirements-dev.txt`
+holds what the gates need. Both are exact-pinned. Widening either to a range
+reintroduces the divergence described below.
+
+## Pitfalls measured in this repository
+
+| Pitfall | Root cause | Resolution |
+|---|---|---|
+| A `make` target named after an existing directory silently no-ops | make treats it as an up-to-date file target | All targets declared `.PHONY`; `scripts/tests/test_makefile_phony.py` fails the build on a new undeclared target and asserts `make -n security` emits a `bandit` line |
+| CI reported a passing test gate with no tests | `pytest tests/ -v \|\| true` against a `tests/` directory that did not exist | `TEST_DIRS = scripts/tests`, no `\|\| true`; the directory now exists and is the only place tests live |
+| Local and CI could disagree on lint results | CI ran `pip install ruff cfn-lint` unpinned while `requirements.txt` pinned `cfn-lint==1.52.0`; `ruff` was pinned nowhere | Both pinned in `requirements-dev.txt`; CI calls `make` targets |
+| `.pre-commit-config.yaml` describes hooks that never ran | `pre-commit` is not installed locally; `core.hooksPath` points at `.githooks`, so only `.githooks/pre-commit` executes | Documented here. `.githooks/pre-commit` is the gate that actually runs locally |
+| A new Python directory escaping lint | `PY_PATHS` named only `scripts`, so `tools/` would have been unlinted and unscanned | `PY_PATHS = scripts tools`; adding a Python directory means adding it here |
+| A local virtualenv on a different Python than CI | `.venv` was created with Python 3.14; CI pins 3.12 | Unresolved — recreate `.venv` on 3.12 with `make install` if a version-sensitive failure appears |
+| gitleaks reported "no leaks found" while never reading a single document | `.gitleaks.toml` allowlisted `.*\.md$`, removing every Markdown file from the scan. Scanned volume was 207 KB against 950 KB of repository content | The blanket path entry is gone; narrow allowlists replace it. See the notes in `.gitleaks.toml` |
+| The `internal-hostname` rule fired on every RFC 2606 example domain | `[\w.-]+\.(?:internal\|corp\|local)\b` matched the `.corp` inside `corp.example.com`, so the suffix did not have to end the hostname | Suffix anchored with `(?:$\|[^\w.-])`. Go RE2 has no lookahead, so the tail is spelled out |
+| A first control test appeared to prove the scanner was broken | The planted value was `AKIAIOSFODNN7EXAMPLE`, which gitleaks' default config allowlists as a known placeholder | Control inputs must be values the rules actually reject. The working probe plants a private key block, an RFC 1918 address, an internal hostname, an account ID, an address, and a vCenter password, and asserts all six rules fire |
+
+## Guard outcomes
+
+Both guards distinguish three outcomes so a warning cannot be mistaken for a
+pass:
+
+| Outcome | `check_agent_context_budget.py` | Global irreversible-operations hook |
+|---|---|---|
+| block | exit 1: over the hard cap, an index target missing, or untracked | `command` action, exit 2 |
+| ask | exit 0 with `warning:` lines: past the warn threshold | exit 2 with an approval instruction |
+| allow | exit 0, silent | exit 0, silent |
+
+A guard that has never been observed rejecting bad input is not known to work.
+`scripts/tests/` exercises the rejection paths, not only the healthy ones.
+
+## Secret scanning scope
+
+`gitleaks` has two scan modes and they do not cover the same thing.
+
+| Invocation | Covers | Used by |
+|---|---|---|
+| `gitleaks detect --no-git --source .` | The working tree only | Local checks, `.githooks/pre-commit` |
+| `gitleaks detect` | Every commit reachable from HEAD | CI (`gitleaks-action` with `fetch-depth: 0`) |
+
+A clean working tree therefore does not imply CI will pass. **History is permanent**:
+a value removed from the tree is still reachable from the commits that introduced it,
+and removing it from history needs a rewrite plus a force-push.
+
+`.gitleaks.toml` carries a rule-scoped `commits` allowlist for one accepted historical
+finding, a vendor support address committed before Markdown was in scope. The allowlist
+is scoped to that rule and to those four commit SHAs, so a new occurrence still fails.
+Verify both modes and the rejection path before trusting a clean result:
+
+```bash
+gitleaks detect --config .gitleaks.toml --no-git --source .   # tree
+gitleaks detect --config .gitleaks.toml                       # history, as CI sees it
+```
