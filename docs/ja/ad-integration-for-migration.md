@@ -135,7 +135,7 @@ FSx for ONTAP SVM がオンプレ AD ドメインコントローラーと通信�
 
 ## 移行時の SMB 共有 SID 保持に関する注意事項
 
-### SID とは
+### SID の定義
 
 Security Identifier (SID) は Windows / AD 環境でユーザー・グループ・コンピュータを一意に識別する値である。NTFS ACL は SID ベースでアクセス権を記録しているため、移行後も同じ SID が解決可能であることが、アクセス権維持の前提条件になる。
 

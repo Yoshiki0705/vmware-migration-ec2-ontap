@@ -19,6 +19,7 @@ make drift      # 設定の到達性 + 常時ロードコンテキスト予算
 | `test` | pytest | `TEST_DIRS` |
 | `cfn-lint` | cfn-lint | `TEMPLATE_GLOB` |
 | `security` | bandit (`-ll`, Medium 以上) | `PY_PATHS` |
+| `headings` | `tools/check_heading_style.py` (selftest, then scan) | `HEADING_CHECK`; walk scope is the script's `SKIP` set |
 | `shellcheck` | shellcheck | `SHELL_PATHS` |
 | `agent-config` | global `validate_agent_config.py` | steering / skills / hooks |
 | `context-budget` | `scripts/check_agent_context_budget.py` | AGENTS.md, `.kiro/steering/` |
@@ -40,6 +41,7 @@ reintroduces the divergence described below.
 | CI reported a passing test gate with no tests | `pytest tests/ -v \|\| true` against a `tests/` directory that did not exist | `TEST_DIRS = scripts/tests`, no `\|\| true`; the directory now exists and is the only place tests live |
 | Local and CI could disagree on lint results | CI ran `pip install ruff cfn-lint` unpinned while `requirements.txt` pinned `cfn-lint==1.52.0`; `ruff` was pinned nowhere | Both pinned in `requirements-dev.txt`; CI calls `make` targets |
 | `.pre-commit-config.yaml` describes hooks that never ran | `pre-commit` is not installed locally; `core.hooksPath` points at `.githooks`, so only `.githooks/pre-commit` executes | Documented here. `.githooks/pre-commit` is the gate that actually runs locally |
+| A new Python directory escaping lint | `PY_PATHS` named only `scripts`, so `tools/` would have been unlinted and unscanned | `PY_PATHS = scripts tools`; adding a Python directory means adding it here |
 | A local virtualenv on a different Python than CI | `.venv` was created with Python 3.14; CI pins 3.12 | Unresolved — recreate `.venv` on 3.12 with `make install` if a version-sensitive failure appears |
 
 ## Guard outcomes

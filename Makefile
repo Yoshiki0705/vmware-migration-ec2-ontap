@@ -27,12 +27,14 @@ CFN_LINT  := $(call tool,cfn-lint)
 BANDIT    := $(call tool,bandit)
 
 # Single source of truth for what each gate inspects.
-PY_PATHS      := scripts
+PY_PATHS      := scripts tools
 TEST_DIRS     := scripts/tests
 TEMPLATE_GLOB := templates/*.yaml
 SHELL_PATHS   := scripts
 DOC_GLOBS     := docs/**/*.md README.md README.en.md
 AGENTS_FILE   := AGENTS.md
+# 見出し検査の走査範囲は検出器の SKIP 集合が単一の定義。ここでは呼び先だけ持つ。
+HEADING_CHECK := tools/check_heading_style.py
 
 .DEFAULT_GOAL := help
 
@@ -84,6 +86,11 @@ shellcheck: ## shellcheck（未導入ならスキップ理由を出して失敗�
 	@command -v shellcheck >/dev/null || { echo "shellcheck が見つかりません。brew install shellcheck"; exit 1; }
 	shellcheck --severity=warning $(SHELL_PATHS)/*.sh
 
+.PHONY: headings
+headings: ## 日本語の節見出しが体言止めか（本検査の前に自己テストを走らせる）
+	@$(PYTHON) $(HEADING_CHECK) --selftest >/dev/null
+	$(PYTHON) $(HEADING_CHECK)
+
 .PHONY: agent-config
 agent-config: ## steering / skills / hooks の到達性（グローバル検証器）
 	$(PYTHON) $${KIRO_HOME:-$$HOME/.kiro}/hooks/scripts/validate_agent_config.py
@@ -96,7 +103,7 @@ context-budget: ## 常時ロードコンテキストの上限とローダーの�
 drift: agent-config context-budget ## 逆戻り検出（設定の到達性 + 常時ロード予算）
 
 .PHONY: ci
-ci: lint format-check test cfn-lint security drift ## CI が呼ぶ集約ターゲット
+ci: lint format-check test cfn-lint security headings drift ## CI が呼ぶ集約ターゲット
 
 .PHONY: all
 all: ci ## ci の別名

@@ -46,6 +46,41 @@ belong in `.private/` (gitignored).
 > without failing the job. Confirm the secret is present when relying on this
 > check.
 
+## Japanese section headings
+
+Every `##`-or-deeper heading containing Japanese must be a noun phrase. A
+heading sits where a label is expected, so a verb-final form, a question form,
+or a full predicate reads as a sentence in a label slot.
+
+| Form | Avoid | Use |
+|---|---|---|
+| Verb-final | 自分の環境で確かめる | 自環境での確認手順 |
+| Question | なぜこの区分が必要か | この区分が必要な理由 |
+| Predicate (polite) | 記録されない読み取りがあります | 記録されない読み取りの存在 |
+| Predicate (negative) | AWS 側からしか消せない | AWS 側からしか消せないボリューム |
+
+Nominalising must not drop the assertion the heading carries. 「監査の 2 つの面と
+片方の穴」loses the claim that a gap exists. Keep it with a suffix (`〜の存在` /
+`〜の不在` / `〜の成立` / `〜の不成立` / `〜の無効化` / `〜の上限` / `〜の理由`) or a
+modifier (`未対応の〜` / `既定で無効な〜`). A heading that survives no suffix is
+carrying a sentence — move it into the body.
+
+Out of scope: H1 (the document title, which this repository keeps in-body and
+which its own rule defines as a one-line claim), English headings, `#` lines
+inside code fences, table cells, and list items.
+
+Narrative, advice whose tone *is* the content, and statements of intent are not
+labels, and nominalising them destroys them. Judge by whether the heading works
+as an index entry. If it does not, annotate the heading line with
+`<!-- allow:heading-style -->` and say in the surrounding prose why it is
+narrative.
+
+Enforced by `make headings` (`tools/check_heading_style.py`). The target runs the
+detector's own selftest before the repository scan, because a detector whose rule
+stopped matching reports an empty result that is indistinguishable from a pass.
+Renaming a heading changes its anchor: check `grep -rn '](#'` and `grep -rn '.md#'`
+and follow the references in the same commit.
+
 ## Bilingual docs
 
 JA is primary, EN must match section structure and count with equivalent inline
