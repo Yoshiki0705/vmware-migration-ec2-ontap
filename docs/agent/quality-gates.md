@@ -43,6 +43,9 @@ reintroduces the divergence described below.
 | `.pre-commit-config.yaml` describes hooks that never ran | `pre-commit` is not installed locally; `core.hooksPath` points at `.githooks`, so only `.githooks/pre-commit` executes | Documented here. `.githooks/pre-commit` is the gate that actually runs locally |
 | A new Python directory escaping lint | `PY_PATHS` named only `scripts`, so `tools/` would have been unlinted and unscanned | `PY_PATHS = scripts tools`; adding a Python directory means adding it here |
 | A local virtualenv on a different Python than CI | `.venv` was created with Python 3.14; CI pins 3.12 | Unresolved — recreate `.venv` on 3.12 with `make install` if a version-sensitive failure appears |
+| gitleaks reported "no leaks found" while never reading a single document | `.gitleaks.toml` allowlisted `.*\.md$`, removing every Markdown file from the scan. Scanned volume was 207 KB against 950 KB of repository content | The blanket path entry is gone; narrow allowlists replace it. See the notes in `.gitleaks.toml` |
+| The `internal-hostname` rule fired on every RFC 2606 example domain | `[\w.-]+\.(?:internal\|corp\|local)\b` matched the `.corp` inside `corp.example.com`, so the suffix did not have to end the hostname | Suffix anchored with `(?:$\|[^\w.-])`. Go RE2 has no lookahead, so the tail is spelled out |
+| A first control test appeared to prove the scanner was broken | The planted value was `AKIAIOSFODNN7EXAMPLE`, which gitleaks' default config allowlists as a known placeholder | Control inputs must be values the rules actually reject. The working probe plants a private key block, an RFC 1918 address, an internal hostname, an account ID, an address, and a vCenter password, and asserts all six rules fire |
 
 ## Guard outcomes
 
@@ -57,3 +60,26 @@ pass:
 
 A guard that has never been observed rejecting bad input is not known to work.
 `scripts/tests/` exercises the rejection paths, not only the healthy ones.
+
+## Secret scanning scope
+
+`gitleaks` has two scan modes and they do not cover the same thing.
+
+| Invocation | Covers | Used by |
+|---|---|---|
+| `gitleaks detect --no-git --source .` | The working tree only | Local checks, `.githooks/pre-commit` |
+| `gitleaks detect` | Every commit reachable from HEAD | CI (`gitleaks-action` with `fetch-depth: 0`) |
+
+A clean working tree therefore does not imply CI will pass. **History is permanent**:
+a value removed from the tree is still reachable from the commits that introduced it,
+and removing it from history needs a rewrite plus a force-push.
+
+`.gitleaks.toml` carries a rule-scoped `commits` allowlist for one accepted historical
+finding, a vendor support address committed before Markdown was in scope. The allowlist
+is scoped to that rule and to those four commit SHAs, so a new occurrence still fails.
+Verify both modes and the rejection path before trusting a clean result:
+
+```bash
+gitleaks detect --config .gitleaks.toml --no-git --source .   # tree
+gitleaks detect --config .gitleaks.toml                       # history, as CI sees it
+```

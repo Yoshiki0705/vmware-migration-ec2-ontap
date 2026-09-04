@@ -19,7 +19,7 @@ NetApp Shift Toolkit は、VM を異なるハイパーバイザー間で移行�
 AWS Storage Blog でも、VMware ワークロードを Amazon EC2 と Amazon FSx for NetApp ONTAP へ移行する動きは、単なるライセンス回避ではなく、AWS のコスト効率、柔軟性、信頼性、セキュリティを活用するインフラモダナイゼーションの機会として説明されています。[（出典）](https://aws.amazon.com/blogs/storage/expedite-vmware-migration-to-amazon-ec2-and-amazon-fsx-for-netapp-ontap-using-bluexp-workload-factory-for-aws-migration-advisor/)
 
 > ⚠️ **注意**: VMware ESXi to AWS EC2 の Shift Toolkit 対応は Early Preview の位置づけです。
-> **2026-06-19 更新**: Shift Toolkit v8.0 ブログにて、OS ディスクの EBS 変換とデータディスクの FSx for ONTAP 配置の**両方**をカバーすることが確認されました（[出典](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)）。利用には `ng-shift-toolkit-support@netapp.com` への連絡が必要であり、検証時点の仕様・制約・サポート範囲は変更される可能性があります。
+> **2026-06-19 更新**: Shift Toolkit v8.0 ブログにて、OS ディスクの EBS 変換とデータディスクの FSx for ONTAP 配置の**両方**をカバーすることが確認されました（[出典](https://community.netapp.com/t5/Tech-ONTAP-Blogs/What-s-New-in-Shift-v8-0-File-to-LUN-EC2-FSx-for-ONTAP-Trident-Integration-amp/ba-p/467669)）。利用には NetApp のサポート窓口への連絡が必要であり、検証時点の仕様・制約・サポート範囲は変更される可能性があります。
 
 ---
 
@@ -164,7 +164,7 @@ Shift Toolkit の変換速度の核心は ONTAP FlexClone テクノロジーに�
 
 **EC2 Early Preview 有効化方法:**
 
-- 連絡先: `ng-shift-toolkit-support@netapp.com`
+- 連絡先: NetApp のサポート窓口（アドレスは Shift Toolkit v8.0 ブログに記載）
 - ダウンロード: [MySupport Shift Toolkit ページ](https://mysupport.netapp.com/site/tools/tool-eula/netapp-shift-toolkit)
 
 **EC2 移行パスの技術詳細（v8.0 ブログから確定）:**
@@ -224,7 +224,7 @@ NetApp 公式ドキュメントの「Migrate VMs to Amazon EC2」セクション
 - SnapMirror レプリケーションを活用した高速データ転送（事前設定必須）
 - 移行後は FSx for ONTAP のネイティブ LUN として Snapshot / SnapMirror / FlexClone がすべて利用可能
 - ゲスト OS 準備: cloud-init（Linux）/ EC2Launch v2（Windows）を自動注入
-- 利用には `ng-shift-toolkit-support@netapp.com` への連絡と config.json 編集（`enableAmazonEC2: true`）が必要
+- 利用には NetApp のサポート窓口への連絡と config.json 編集（`enableAmazonEC2: true`）が必要
 
 **確定した構成:**
 
@@ -262,7 +262,7 @@ OS / ルートディスク  → Amazon EBS (gp3)        ← VMDK→RAW→S3→AM
 | セキュリティグループ | iSCSI(3260), HTTPS(443), SSH(22), RDP(3389), WinRM(5985-5986), SnapMirror(11104-11105) |
 | S3 バケット | VM Import/Export 用のステージングバケット |
 
-**注意**: Early Preview の有効化については `ng-shift-toolkit-support@netapp.com` に連絡する。Shift Toolkit のインストールディレクトリ `config.json` で `enableAmazonEC2` を `true` に変更し、NetApp Shift サービスを再起動する。
+**注意**: Early Preview の有効化については NetApp のサポート窓口に連絡する（アドレスは Shift Toolkit v8.0 ブログに記載）。Shift Toolkit のインストールディレクトリ `config.json` で `enableAmazonEC2` を `true` に変更し、NetApp Shift サービスを再起動する。
 
 **詳細な移行手順書**: [`docs/ja/shift-toolkit-ec2-procedure.md`](./shift-toolkit-ec2-procedure.md)
 
@@ -610,7 +610,7 @@ Shift Toolkit の価値は、AWS、NetApp、VMware のいずれか一社の視�
 - ONTAP NFS データストアが前提（非 ONTAP 環境では使えない）
 - Windows 専用ツール
 - EC2 対応は Early Preview（v8.0 で OS→EBS + Data→FSx for ONTAP が確定。GA 時期未定）
-- EC2 Early Preview 有効化には `ng-shift-toolkit-support@netapp.com` への連絡が必要
+- EC2 Early Preview 有効化には NetApp のサポート窓口への連絡が必要
 
 ---
 

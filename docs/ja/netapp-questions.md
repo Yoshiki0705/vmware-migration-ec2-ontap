@@ -135,7 +135,7 @@ AWS Transform との分担は別の議論。Shift 単体でこの構成を完結
 
 ## 確認方法のメモ
 
-- Shift Toolkit v8.0 Early Preview の有効化: `ng-shift-toolkit-support@netapp.com` に連絡（ブログ記載）
+- Shift Toolkit v8.0 Early Preview の有効化: NetApp のサポート窓口に連絡（アドレスは Shift Toolkit v8.0 ブログに記載）
 - Shift Toolkit ダウンロード: [MySupport Shift Toolkit ページ](https://mysupport.netapp.com/site/tools/tool-eula/netapp-shift-toolkit)（NetApp Support アカウント要）
 - AWS Transform の FSx for ONTAP 宛先 UI: VMware migration の移行ウェーブ計画フロー内で確認（ジョブ作成・discovery データ投入が前提）
 

@@ -249,7 +249,7 @@ Before migration, verify that the source VM's guest OS is included in the follow
 
 ### 2.4 Shift Toolkit Enablement
 
-1. Contact `ng-shift-toolkit-support@netapp.com` to enable the EC2 Early Preview
+1. Contact the NetApp support alias (address given in the Shift Toolkit v8.0 blog) to enable the EC2 Early Preview
 2. Edit `config.json` in the Shift Toolkit installation directory:
    ```json
    { "enableAmazonEC2": true }

@@ -18,7 +18,10 @@ tags = ["aws", "account"]
 [[rules]]
 id = "internal-hostname"
 description = "Internal hostname patterns"
-regex = '''[\w.-]+\.(?:internal|corp|local)\b'''
+# The suffix must terminate the hostname. A bare \b also matched the ".corp" inside
+# "corp.example.com", which made every RFC 2606 example domain a false positive.
+# Go RE2 has no lookahead, so the tail is expressed as end-of-line or a non-hostname char.
+regex = '''[\w-]+(?:\.[\w-]+)*\.(?:internal|corp|local)(?:$|[^\w.-])'''
 tags = ["internal", "hostname"]
 
 [[rules]]
@@ -27,6 +30,20 @@ description = "NetApp internal references"
 regex = '''(?i)(?:[\w.-]+@netapp\.com|[\w.-]+\.netapp\.internal)'''
 tags = ["netapp", "internal"]
 
+  # Accepted historical findings, not an exemption for new ones.
+  # A vendor support address was committed in these four commits before Markdown was
+  # brought into scope. It has been removed from the working tree (replaced with a
+  # reference to the address published in the vendor blog), but git history is permanent.
+  # Removing it from history requires a rewrite and a force-push, which has not been done.
+  # Scoped to this rule and to these commits, so any NEW occurrence still fails the gate.
+  [rules.allowlist]
+  commits = [
+    "1445357428a994d23afaad3f85f2d9486d6be694",
+    "2e913df44f9f7497b667f6ef425d585e2f78ffb2",
+    "61343fa6186efcce72020811046c17c51018bae4",
+    "6b44fd1dee6600b8595dcb9ef796b61249dce832",
+  ]
+
 [[rules]]
 id = "vmware-credentials"
 description = "VMware vCenter credentials"
@@ -34,11 +51,20 @@ regex = '''(?i)(?:vcenter[_-]?(?:password|pass|pwd|secret))\s*[:=]\s*["\']?[^\s"
 tags = ["vmware", "credentials"]
 
 [allowlist]
+# Markdown is deliberately NOT excluded here. A blanket '.*\.md$' entry silently
+# removed every document from the scan, which is the surface where resource IDs,
+# internal IPs and addresses are most likely to leak. Narrow allowlists below instead.
 paths = [
   '''\.gitleaks\.toml$''',
   '''\.gitignore$''',
   '''.*\.example$''',
-  '''.*\.md$''',
   '''templates/.*\.yaml$''',
   '''params/.*\.example\.json$''',
+]
+
+# Documented example values. Kept narrow on purpose: only the all-zero host address in
+# CIDR form is allowed, so a real address such as 10.1.23.45 still fires. The trailing
+# slash is required, and it is part of what the internal-ip-address rule captures.
+regexes = [
+  '''10\.0\.0\.0/''',
 ]
