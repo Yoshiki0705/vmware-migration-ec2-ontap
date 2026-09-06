@@ -166,31 +166,26 @@ GROUP_POINTS = (
 )
 
 
-def group_style(
-    gr_icon: str | None,
-    stroke: str,
-    ink: str,
-    dashed: bool,
-    size: int,
-    spacing_left: int,
-    spacing_top: int,
-) -> str:
-    """A boundary. `gr_icon=None` draws no badge.
+def group_style(gr_icon: str | None, stroke: str, ink: str, dashed: bool, size: int) -> str:
+    """A boundary. `gr_icon=None` draws no badge, and an empty value draws no text.
 
     The official Architecture-Group-Icons package defines a badge for a fixed set of
     boundaries — AWS Cloud, Region, VPC, subnets, Auto Scaling group, account, EC2 instance
     contents, corporate data center, Spot Fleet, Greengrass. **There is no badge for a
     storage virtual machine**, so a boundary that is one has to carry none: putting the AWS
-    Cloud badge on it says the box is the AWS Cloud. The service is named instead by placing
-    its own 80px architecture icon inside the boundary, which is why `spacing_left` is a
-    parameter — the label has to clear the icon.
+    Cloud badge on it says the box is the AWS Cloud.
+
+    A boundary with no badge is named by placing the service's own architecture icon inside
+    it. **The icon's name goes underneath the icon, not beside it** — that is where the AWS
+    guidelines put an icon label, and an earlier version of the Finalize figure put it to the
+    right by raising `spacingLeft`, which reads as a label detached from its icon.
     """
     badge = f"grIcon=mxgraph.aws4.{gr_icon};" if gr_icon else ""
     return (
         f"{GROUP_POINTS};outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;"
         f"fontSize={size};fontStyle=1;fontColor={ink};shape=mxgraph.aws4.group;"
         f"{badge}strokeColor={stroke};fillColor=none;"
-        f"verticalAlign=top;align=left;spacingLeft={spacing_left};spacingTop={spacing_top};"
+        f"verticalAlign=top;align=left;spacingLeft=30;spacingTop=4;"
         f"dashed={1 if dashed else 0};"
     )
 
@@ -308,26 +303,28 @@ LABELS: dict[str, dict[str, str]] = {
         "ja": "Network Load Balancer\n（自動作成）",
         "en": "Network Load Balancer\n(auto-created)",
     },
-    "secrets_manager": {
-        "ja": "AWS Secrets Manager\n（クライアント証明書）",
-        "en": "AWS Secrets Manager\n(client certificate)",
-    },
+    # 1 行。2 行目に置いていた「（クライアント証明書）」はエッジのラベルと同じことを言って
+    # いたので、エッジ側に寄せた。ラベルが 176px から 171px に縮み、縦線を跨がなくなる。
+    "secrets_manager": {"ja": "AWS Secrets Manager", "en": "AWS Secrets Manager"},
     "mgmt_endpoint": {
         "ja": "ONTAP 管理エンドポイント\nREST API / 443",
         "en": "ONTAP management endpoint\nREST API / 443",
     },
     "control_plane": {"ja": "管理経路", "en": "Control path"},
-    "data_plane": {"ja": "データ経路", "en": "Data path"},
+    "staging_area": {"ja": "ステージング領域", "en": "Staging area"},
     "e_agent": {"ja": "ブロックレプリケーション", "en": "Block replication"},
-    "e_boot": {"ja": "ブート", "en": "Boot"},
-    "e_data": {"ja": "データ", "en": "Data"},
+    "e_write": {"ja": "ブロックを書き込む", "en": "Writes blocks"},
     "e_iscsi": {"ja": "iSCSI", "en": "iSCSI"},
-    "e_cert": {"ja": "証明書を取得", "en": "Reads the certificate"},
+    # 矢印は Secrets Manager から AWS Transform へ向く。証明書が流れる向きに合わせると、
+    # 矢頭が右下を向いて他の矢印と揃う。逆向き（「証明書を取得」）だと矢頭だけが左上を指す。
+    "e_cert": {"ja": "クライアント証明書", "en": "Client certificate"},
     "e_pl": {"ja": "証明書認証", "en": "Certificate auth"},
     # --- figure 2 -------------------------------------------------------------------
+    # 2 行。アイコンの下に置くラベルなので、AWS のガイドラインどおり 2 行以内で折り、
+    # 単語の途中では切らない。
     "svm": {
-        "ja": "Amazon FSx for NetApp ONTAP（検証用 SVM）",
-        "en": "Amazon FSx for NetApp ONTAP (verification SVM)",
+        "ja": "Amazon FSx for NetApp ONTAP\n（検証用 SVM）",
+        "en": "Amazon FSx for NetApp ONTAP\n(verification SVM)",
     },
     "f2_staging": {
         "ja": "ステージング FlexVol\n物理 8.03 GiB",
@@ -410,9 +407,6 @@ class Group:
     gr_icon: str | None = "group_aws_cloud"
     kind: str = "cloud"
     dashed: bool = False
-    # Raised when an icon sits at the boundary's top-left, so the label clears it.
-    spacing_left: int = 30
-    spacing_top: int = 4
 
 
 @dataclass(frozen=True)
@@ -509,50 +503,49 @@ def _data_path() -> Diagram:
     under an 80px icon — 「（レプリケーションサーバー）」 is 224px at 16 alone — so a single row of
     five columns cannot both meet the floor and keep its labels apart. Two figures each meet it.
 
-    Rows rather than one row: the branch into Amazon EBS and FSx for ONTAP is the point of the
-    figure, and stacking it costs height, which nothing here competes for.
+    **流れる向きは右と下だけ。** 以前の版は、レプリケーションサーバーから右の車線へ出て下り、
+    そこから左へ 400px 戻ってストレージのアイコンへ入っていた。1 本の矢印の中で右・下・左・下と
+    向きが変わるので、読者が経路を 1 本ずつ指で追わないと、どれがブートでどれがデータか分から
+    ない。向きを 2 つに限ると、追わずに位置で読める。
 
-    Every edge leaves a box sideways and re-enters from the top or a side, never downwards — the
-    space below an icon belongs to its label. The two long hops therefore run out to a gutter on
-    the right and come back, which is why they carry explicit `points`.
+    そのために変えたのは 2 点。
+
+    1. **ステージング領域を 1 枚の枠にまとめ、レプリケーションサーバーから出る矢印を 1 本にした。**
+       ブートとデータの行き先の違いは、枠の中の 2 行とそれぞれのラベルが示す。2 本の矢印で
+       示そうとすると、下の行へ入る 1 本が上の行の枠を跨ぐしかなく、車線を枠の外へ出すことに
+       なる。それが以前の版の左戻りの正体だった。
+    2. **ボリュームのボックスをアイコンの右に置いた。** アイコンから下へ線を引くとラベルを
+       貫くので、縦の連鎖はボックスからしか始められない。
+
+    枠から下のカットオーバー先へ向かう 2 本は枠の右外の車線を下る。x が違うだけでなく、
+    互いの水平区間が相手の縦線に当たらない順序（データ側を下に）にしてあるので、交差が 0 本。
     """
     return Diagram(
         name="atx-fsxn-data-path",
         diagram_id="atx-fsxn-data-path",
-        width=800,
-        height=1000,
+        # 815px。いちばん右にあるのはカットオーバー先 EC2 のラベル（右端 740）で、そこへ境界
+        # 2 枚分の余白を足した幅。この幅なら縮小が掛からず、ラベルは 16px のまま読者に届く。
+        width=815,
+        height=946,
         groups=(
-            Group("aws_cloud", "aws_cloud", 25, 30, 750, 930),
-            Group(
-                "vpc",
-                "vpc",
-                55,
-                90,
-                690,
-                840,
-                gr_icon="group_vpc2",
-                kind="vpc",
-                dashed=True,
-            ),
+            Group("aws_cloud", "aws_cloud", 28, 30, 762, 886),
+            Group("vpc", "vpc", 53, 90, 712, 801, gr_icon="group_vpc2", kind="vpc", dashed=True),
         ),
-        # 左端 70。アイコン列 190 に対し "Amazon FSx for NetApp ONTAP"（220px）は 80 から
-        # 始まるので、80 だとラベルが枠線に接する。右端は 690 で、最も右を走る配線（660）より外。
-        # 高さ 750。720 だと、カットオーバー先 EC2 の 2 行目のラベルが下の枠線に切られる。
-        # ラベルはアイコンの下 44px を使うので、最下段の下端はアイコンではなくラベルで決まる。
-        frames=(Frame("data_plane", "data_plane", 70, 140, 620, 750),),
-        # 左に寄せてある。右側はエッジの縦走り専用。ボックスを右へ置くと、行をまたぐ 2 本が
-        # ボックスを貫いた。アイコン列は 190 で、180 だと英語の "Amazon Elastic Block Store"
-        # （212px）が枠線を 6px はみ出す。日本語は収まるので EN を別に見ないと出てこない。
+        # エッジが 1 つのアイコンではなく集合に着く必要があるので枠を使う。中の 2 行が
+        # ブートとデータの行き先の違いを持つ。
+        frames=(Frame("staging_area", "staging_area", 95, 330, 520, 342),),
         boxes=(
-            Box("boot_volume", "boot_volume", 300, 405, 220, 50),
-            Box("staging_flexvol", "staging_flexvol", 300, 592, 230, 56),
+            Box("boot_volume", "boot_volume", 361, 382, 230, 56),
+            Box("staging_flexvol", "staging_flexvol", 361, 538, 230, 56),
         ),
         nodes=(
-            Node("source_ec2", "ec2", "source_ec2", *centred("ec2", 190, 235)),
-            Node("repl_ec2", "ec2", "repl_ec2", *centred("ec2", 470, 235)),
-            Node("ebs", "ebs", "ebs", *centred("ebs", 190, 430)),
-            Node("fsx_staging", "fsx_ontap", "fsx_staging", *centred("fsx_ontap", 190, 620)),
-            Node("target_ec2", "ec2", "target_ec2", *centred("ec2", 400, 790)),
+            Node("source_ec2", "ec2", "source_ec2", *centred("ec2", 170, 190)),
+            Node("repl_ec2", "ec2", "repl_ec2", *centred("ec2", 460, 190)),
+            # 中心 225。英語の "Amazon FSx for NetApp ONTAP" はアイコンの下で 243px あり、
+            # 220 だと枠の左端 95 まで 3px しか残らない。
+            Node("ebs", "ebs", "ebs", *centred("ebs", 225, 410)),
+            Node("fsx_staging", "fsx_ontap", "fsx_staging", *centred("fsx_ontap", 225, 566)),
+            Node("target_ec2", "ec2", "target_ec2", *centred("ec2", 660, 780)),
         ),
         edges=(
             Edge(
@@ -564,60 +557,42 @@ def _data_path() -> Diagram:
                 entry_at=(0, 0.5),
                 offset=(0, 0, -14),
             ),
-            # Out to the gutter and back, entering from the top. The return leg is placed below
-            # both labels on the row above it: at y=360 it clears the source label, which ends at
-            # 315, and stops short of the Amazon EBS icon, which starts at 390.
+            # 右へ出て下り、枠の上端へ入る。車線 590 はレプリケーションサーバーのラベルの
+            # 右端 572 より外。ラベルの上を縦線が走ると、ラベルの 3 行目のように見える。
             Edge(
                 "e2",
                 "repl_ec2",
-                "ebs",
-                "e_boot",
+                "staging_area",
+                "e_write",
                 exit_at=(1, 0.5),
-                entry_at=(0.5, 0),
-                points=((620, 235), (620, 365), (190, 365)),
-                # 行をまたぐ帰り道の上ではなく、入口直前の縦の区間の横に置く。帰り道の
-                # 中点は上の行のラベル帯に届いてしまい、「（レプリケーションサーバー）」と重なった。
-                offset=(0.9, 46, 0),
+                entry_at=(0.952, 0),
+                points=((590, 190),),
+                offset=(0, 70, 0),
             ),
-            # Leaves from lower on the same side, so the two branches do not share a start point,
-            # and returns at y=555 — below the Amazon EBS label, above the FSx for ONTAP icon.
+            # ラベルは要らない。隣のボックスが自分の名前を持っている。
+            Edge("e3", "ebs", "boot_volume", exit_at=(1, 0.5), entry_at=(0, 0.5)),
+            Edge("e4", "fsx_staging", "staging_flexvol", exit_at=(1, 0.5), entry_at=(0, 0.5)),
+            # 枠の外の車線を下る。ブートは 680、データは 640。**x を分けるだけでは足りない。**
+            # 680 は y 410..740、640 は y 566..740 を走り、どちらの水平区間も相手の縦線に
+            # 当たらない。逆順にすると 1 か所で交差する。
             Edge(
-                "e3",
-                "repl_ec2",
-                "fsx_staging",
-                "e_data",
-                exit_at=(1, 0.75),
-                entry_at=(0.5, 0),
-                points=((660, 255), (660, 545), (190, 545)),
-                offset=(0.9, 46, 0),
-            ),
-            # No label: the box beside each icon already names what the leg carries.
-            Edge("e4", "ebs", "boot_volume", exit_at=(1, 0.5), entry_at=(0, 0.5)),
-            Edge("e5", "fsx_staging", "staging_flexvol", exit_at=(1, 0.5), entry_at=(0, 0.5)),
-            # ボックスの下端から出す。ボックスは fillColor=none なので、右端から出ると配線が
-            # ボックス内の文字と同じ高さを走り、文字を貫いて見える。ボックスの下にラベルは
-            # 無いので（文字は内側）、下方向へ出してよい。
-            # 縦の車線は 620。**以前は 660 で、e3 の 660 と y 520..545 を共有していた。**
-            # 2 本の別々のエッジが同じ縦線の上を重なって走るので、右端はレプリケーション
-            # サーバーからカットオーバー先まで 1 本続く線に見えていた。620 は e2 と同じ車線だが
-            # e2 は y 235..365、こちらは y 520..790 で、区間が重ならない。**車線は x が
-            # 違うことではなく、同じ x の上で y が重ならないことで分ける。**
-            Edge(
-                "e6",
+                "e5",
                 "boot_volume",
                 "target_ec2",
-                exit_at=(0.9, 1),
-                entry_at=(1, 0.5),
-                points=((498, 520), (620, 520), (620, 790)),
+                exit_at=(1, 0.5),
+                entry_at=(0.75, 0),
+                points=((680, 410),),
             ),
             Edge(
-                "e7",
+                "e6",
                 "staging_flexvol",
                 "target_ec2",
                 "e_iscsi",
-                exit_at=(0.5, 1),
-                entry_at=(0.7, 0),
-                offset=(0, 30, 0),
+                exit_at=(1, 0.5),
+                entry_at=(0.25, 0),
+                points=((640, 566),),
+                # 枠の下端 672 より下に置く。縦線の中点付近に置くと枠の右の枠線を跨ぐ。
+                offset=(0.6, -26, 0),
             ),
         ),
     )
@@ -691,24 +666,25 @@ def _control_path() -> Diagram:
             ),
             Edge("e9", "privatelink", "nlb", exit_at=(1, 0.5), entry_at=(0, 0.5)),
             Edge("e10", "nlb", "mgmt_endpoint", exit_at=(1, 0.5), entry_at=(0, 0.5)),
-            # 左へ回してから上がる。真上に上げると Secrets Manager のラベル（アイコンの
-            # 真下にある）を縦線が貫く。破線ではない（破線での意味付けは規約が禁じている）。
+            # **Secrets Manager から AWS Transform へ。** 以前は逆向きで「証明書を取得」と
+            # 書いていたが、他の 3 本が右を向いている図の中で 1 本だけ矢頭が左上を指すことに
+            # なる。証明書が流れる向きに合わせると矢頭が右下を向き、向きが揃う。
             #
-            # ラベルは経路の中点ではなく along=-0.15 に置く。中点は y=194 で、Secrets Manager
-            # のラベル 2 行目（y 171..190）に 5px 重なっていた。**JA では 1 行目と離れて
-            # 見えるので気づきにくく、実際に公開前の版で重なっていた。** -0.15 は y=210 で、
-            # ラベル 2 行目の下端 190 と AWS Transform アイコンの上端 238 の間に入る。
-            # x は縦線（70）から +105。EN の "Reads the certificate"（189px）の左端が 80 で
-            # 縦線を跨がない値。
+            # 縦線は左の余白（x=70）を下る。2 つのアイコンが同じ x に縦に並んでいるので、
+            # どちらの向きでも一度は横へ逃げるしかない。破線ではない（破線での意味付けは禁止）。
+            #
+            # ラベルは along=0.15（y=210）。Secrets Manager のラベル下端 173 と
+            # AWS Transform のアイコン上端 238 の間に入る。x は縦線から +105 で、EN の
+            # "Client certificate"（162px）でも左端が 94 になり縦線を跨がない。
             Edge(
                 "e_cert_edge",
-                "atx",
                 "secrets_manager",
+                "atx",
                 "e_cert",
                 exit_at=(0, 0.5),
                 entry_at=(0, 0.5),
-                points=((70, 278), (70, 110)),
-                offset=(-0.15, 105, 0),
+                points=((70, 110), (70, 278)),
+                offset=(0.15, 105, 0),
             ),
         ),
     )
@@ -730,9 +706,11 @@ def _finalize() -> Diagram:
     **境界は 2 枚ある。** 以前はこの図に境界が 1 枚しかなく、それが `Group` の既定である
     AWS Cloud のバッジを付けたまま「Amazon FSx for NetApp ONTAP（検証用 SVM）」と名乗って
     いた。バッジは雲、ラベルはストレージ — 読者には AWS Cloud の文字が無い雲として届く。
-    公式パッケージに SVM のバッジは無いので、SVM 側はバッジを持たず（`gr_icon=None`）、
-    左上に FSx for ONTAP のサービスアイコンを置いて名前を示す。AWS Cloud は外側に 1 枚
-    足した。他の 2 図と同じ構造になる。
+    公式パッケージに SVM のバッジは無いので、SVM 側はバッジもテキストも持たず
+    （`gr_icon=None`、値は空）、中に置いた FSx for ONTAP のサービスアイコンの**下**に
+    名前を出す。AWS Cloud は外側に 1 枚足した。他の 2 図と同じ構造になる。
+
+    向きは下と右だけ。縦の連鎖が本流で、ステージングの削除だけが右へ分岐する。
     """
     return Diagram(
         name="atx-fsxn-finalize-flexclone",
@@ -741,45 +719,37 @@ def _finalize() -> Diagram:
         # 実効サイズは 16 × 880/979 = 14.4px で下限 14 を上回る。キャンバスを 100px 広げる
         # ごとに全ラベルへ掛かる縮小率が下がるので、空きのあるキャンバスは無料ではない。
         width=955,
-        height=840,
+        height=880,
         groups=(
-            Group("aws_cloud", "aws_cloud", 25, 30, 905, 780),
-            # 幅 855。英語の "(runs without interruption)" が Amazon EC2 の下で 208px あり、
-            # 850 だと枠線に触った。JA では収まっていたので、EN 側を別に見ないと気づかない。
-            # `spacing_left=112` は左上の 80px アイコン（62..142）を避ける値。
-            Group(
-                "svm",
-                "svm",
-                50,
-                105,
-                855,
-                690,
-                gr_icon=None,
-                dashed=True,
-                spacing_left=112,
-                spacing_top=30,
-            ),
+            Group("aws_cloud", "aws_cloud", 25, 30, 905, 820),
+            # **文字を持たない境界。** SVM の名前はこの中に置いた FSx for ONTAP アイコンの
+            # 「下」にある。境界にテキストを持たせて左上のアイコンの横に並べると、アイコンと
+            # ラベルが切り離れて見える。幅 855 は英語の "(runs without interruption)" が
+            # Amazon EC2 の下で 208px あるためで、850 だと枠線に触った。
+            Group("svm", "", 50, 105, 855, 725, gr_icon=None, dashed=True),
         ),
         boxes=(
-            Box("f2_staging", "f2_staging", 265, 230, 330, 64),
-            Box("f2_snapshot", "f2_snapshot", 265, 370, 330, 64),
-            Box("f2_clone", "f2_clone", 265, 500, 330, 64),
-            Box("f2_split", "f2_split", 265, 630, 330, 64),
+            Box("f2_staging", "f2_staging", 265, 270, 330, 64),
+            Box("f2_snapshot", "f2_snapshot", 265, 410, 330, 64),
+            Box("f2_clone", "f2_clone", 265, 540, 330, 64),
+            Box("f2_split", "f2_split", 265, 670, 330, 64),
             # 右へ分岐する唯一の枝。ステージングが消えることは本流ではなく副作用なので、
             # 縦の連鎖から外して置く。
-            Box("f2_deleted", "f2_deleted", 630, 370, 240, 64),
+            Box("f2_deleted", "f2_deleted", 630, 410, 240, 64),
         ),
         # フェーズ名は左の桁。段の間に挟むと、同じ y にエッジのラベルが来て衝突する。
         # 左端は 75。SVM 境界の内側 25px で、最長の "SNAPSHOT フェーズ"（136px）が収まる。
         texts=(
-            Text("phase_snapshot", "phase_snapshot", 75, 310, 170, 48),
-            Text("phase_launch", "phase_launch", 75, 510, 170, 48),
-            Text("phase_finalize", "phase_finalize", 75, 640, 170, 48),
+            Text("phase_snapshot", "phase_snapshot", 75, 350, 170, 48),
+            Text("phase_launch", "phase_launch", 75, 550, 170, 48),
+            Text("phase_finalize", "phase_finalize", 75, 680, 170, 48),
         ),
         nodes=(
-            # SVM 境界の見出し。ラベルは境界側が持つので、アイコン自身は持たない。
-            Node("f2_svm", "fsx_ontap", "", 62, 117),
-            Node("f2_target_ec2", "ec2", "f2_target_ec2", *centred("ec2", 790, 662)),
+            # SVM 境界の見出し。**ラベルはアイコンの下**（`icon_style` の
+            # `verticalLabelPosition=bottom`）。中心 200 は、2 行のラベルが 243px 幅になる
+            # ので境界の左端 50 から内側 28px を残す位置。
+            Node("f2_svm", "fsx_ontap", "svm", *centred("fsx_ontap", 200, 160)),
+            Node("f2_target_ec2", "ec2", "f2_target_ec2", *centred("ec2", 790, 702)),
         ),
         edges=(
             Edge(
@@ -942,16 +912,8 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         stroke = p.cloud_stroke if group.kind == "cloud" else p.vpc_stroke
         vertex(
             group.cid,
-            label(group.label, lang),
-            group_style(
-                group.gr_icon,
-                stroke,
-                p.ink,
-                group.dashed,
-                diagram.font_group,
-                group.spacing_left,
-                group.spacing_top,
-            ),
+            label(group.label, lang) if group.label else "",
+            group_style(group.gr_icon, stroke, p.ink, group.dashed, diagram.font_group),
             group.x,
             group.y,
             group.width,
@@ -1218,7 +1180,10 @@ def main() -> int:
                 if args.export:
                     export(diagram, lang, theme)
         for group in diagram.groups:
-            seen.add(group.label)
+            # A boundary can carry no text (the SVM one does not), and counting "" as a
+            # label makes the reported count disagree with the table for no reason.
+            if group.label:
+                seen.add(group.label)
         for collection in (diagram.frames, diagram.boxes, diagram.texts):
             for item in collection:
                 seen.add(item.label)
