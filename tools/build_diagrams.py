@@ -166,12 +166,31 @@ GROUP_POINTS = (
 )
 
 
-def group_style(gr_icon: str, stroke: str, ink: str, dashed: bool, size: int) -> str:
+def group_style(
+    gr_icon: str | None,
+    stroke: str,
+    ink: str,
+    dashed: bool,
+    size: int,
+    spacing_left: int,
+    spacing_top: int,
+) -> str:
+    """A boundary. `gr_icon=None` draws no badge.
+
+    The official Architecture-Group-Icons package defines a badge for a fixed set of
+    boundaries — AWS Cloud, Region, VPC, subnets, Auto Scaling group, account, EC2 instance
+    contents, corporate data center, Spot Fleet, Greengrass. **There is no badge for a
+    storage virtual machine**, so a boundary that is one has to carry none: putting the AWS
+    Cloud badge on it says the box is the AWS Cloud. The service is named instead by placing
+    its own 80px architecture icon inside the boundary, which is why `spacing_left` is a
+    parameter — the label has to clear the icon.
+    """
+    badge = f"grIcon=mxgraph.aws4.{gr_icon};" if gr_icon else ""
     return (
         f"{GROUP_POINTS};outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;"
         f"fontSize={size};fontStyle=1;fontColor={ink};shape=mxgraph.aws4.group;"
-        f"grIcon=mxgraph.aws4.{gr_icon};strokeColor={stroke};fillColor=none;"
-        f"verticalAlign=top;align=left;spacingLeft=30;spacingTop=4;"
+        f"{badge}strokeColor={stroke};fillColor=none;"
+        f"verticalAlign=top;align=left;spacingLeft={spacing_left};spacingTop={spacing_top};"
         f"dashed={1 if dashed else 0};"
     )
 
@@ -385,9 +404,15 @@ class Group:
     y: int
     width: int
     height: int
-    gr_icon: str = "group_aws_cloud"
+    # None draws no badge. See `group_style`: the package has no badge for an SVM, and the
+    # default here is the AWS Cloud one, so a boundary that forgets to set this claims to be
+    # the AWS Cloud. That is what shipped in the Finalize figure.
+    gr_icon: str | None = "group_aws_cloud"
     kind: str = "cloud"
     dashed: bool = False
+    # Raised when an icon sits at the boundary's top-left, so the label clears it.
+    spacing_left: int = 30
+    spacing_top: int = 4
 
 
 @dataclass(frozen=True)
@@ -572,13 +597,18 @@ def _data_path() -> Diagram:
             # ボックスの下端から出す。ボックスは fillColor=none なので、右端から出ると配線が
             # ボックス内の文字と同じ高さを走り、文字を貫いて見える。ボックスの下にラベルは
             # 無いので（文字は内側）、下方向へ出してよい。
+            # 縦の車線は 620。**以前は 660 で、e3 の 660 と y 520..545 を共有していた。**
+            # 2 本の別々のエッジが同じ縦線の上を重なって走るので、右端はレプリケーション
+            # サーバーからカットオーバー先まで 1 本続く線に見えていた。620 は e2 と同じ車線だが
+            # e2 は y 235..365、こちらは y 520..790 で、区間が重ならない。**車線は x が
+            # 違うことではなく、同じ x の上で y が重ならないことで分ける。**
             Edge(
                 "e6",
                 "boot_volume",
                 "target_ec2",
                 exit_at=(0.9, 1),
                 entry_at=(1, 0.5),
-                points=((498, 520), (660, 520), (660, 790)),
+                points=((498, 520), (620, 520), (620, 790)),
             ),
             Edge(
                 "e7",
@@ -601,8 +631,12 @@ def _control_path() -> Diagram:
     outcome ("PrivateLink connectivity") without naming the resources. Leaving it out of the data
     path figure is what left the NLB out of cost estimates.
 
-    Right to left, so each hop is adjacent to the next. Laid out left to right, the AWS Transform
-    edge crossed the management endpoint box on its way to AWS PrivateLink.
+    左から右へ流れる。各ホップは隣接しており、エッジは隣り合うセルの間の水平・垂直だけを
+    走る。**以前は右から左だった。** 隣接は保てていたが、矢印が 3 本とも左を向くので、
+    読む向きと流れの向きが逆になる。左右を反転（`x' = W - x - width`）すれば余白も隣接も
+    そのまま保てるので、反転していなかったこと自体に理由は無い。以前の版が「左から右にすると
+    AWS Transform のエッジが管理エンドポイントの箱を横切る」と書いていたのは、VPC を左に
+    置いたまま AWS Transform だけを移した場合の話で、図ごと反転すれば起きない。
     """
     return Diagram(
         name="atx-fsxn-control-path",
@@ -616,28 +650,34 @@ def _control_path() -> Diagram:
             Group(
                 "vpc",
                 "vpc",
-                55,
+                250,
                 90,
-                640,
+                635,
                 350,
                 gr_icon="group_vpc2",
                 kind="vpc",
                 dashed=True,
             ),
         ),
-        frames=(Frame("control_plane", "control_plane", 80, 140, 600, 260),),
-        boxes=(Box("mgmt_endpoint", "mgmt_endpoint", 105, 250, 260, 56),),
+        frames=(Frame("control_plane", "control_plane", 265, 140, 605, 260),),
+        boxes=(Box("mgmt_endpoint", "mgmt_endpoint", 590, 250, 260, 56),),
         nodes=(
-            Node("nlb", "nlb", "nlb", *centred("nlb", 450, 278)),
-            Node("privatelink", "privatelink", "privatelink", *centred("privatelink", 610, 278)),
-            # Outside the VPC: both are AWS Transform's own, not the customer's.
-            Node("atx", "transform", "atx", *centred("transform", 780, 278)),
+            # Outside the VPC, on the left: both are AWS Transform's own, not the customer's.
+            # 中心 130。AWS Transform と AWS PrivateLink の間隔を 140px 取るために左へ寄せて
+            # ある。この区間には "Certificate auth"（144px）が載る。**反転前の版は間隔が
+            # 90px で、EN のこのラベルが両隣のアイコンに 27px ずつ重なっていた。** JA の
+            # 「証明書認証」は 80px なので JA だけ見ると問題が見えない。
+            Node("atx", "transform", "atx", *centred("transform", 130, 278)),
             Node(
                 "secrets_manager",
                 "secrets_manager",
                 "secrets_manager",
-                *centred("secrets_manager", 780, 110),
+                *centred("secrets_manager", 130, 110),
             ),
+            Node("privatelink", "privatelink", "privatelink", *centred("privatelink", 350, 278)),
+            # 中心 490。500 だと "Network Load Balancer"（189px）の右端が管理エンドポイントの
+            # 箱（590 から）に 4px 入る。
+            Node("nlb", "nlb", "nlb", *centred("nlb", 490, 278)),
         ),
         edges=(
             Edge(
@@ -645,25 +685,30 @@ def _control_path() -> Diagram:
                 "atx",
                 "privatelink",
                 "e_pl",
-                exit_at=(0, 0.5),
-                entry_at=(1, 0.5),
+                exit_at=(1, 0.5),
+                entry_at=(0, 0.5),
                 offset=(0, 0, -14),
             ),
-            Edge("e9", "privatelink", "nlb", exit_at=(0, 0.5), entry_at=(1, 0.5)),
-            Edge("e10", "nlb", "mgmt_endpoint", exit_at=(0, 0.5), entry_at=(1, 0.5)),
-            # Around the right rather than straight up: straight up runs through the Secrets
-            # Manager label, which sits under its icon. The label is nudged left of the riser so
-            # it does not reach the AWS Cloud border.
+            Edge("e9", "privatelink", "nlb", exit_at=(1, 0.5), entry_at=(0, 0.5)),
+            Edge("e10", "nlb", "mgmt_endpoint", exit_at=(1, 0.5), entry_at=(0, 0.5)),
+            # 左へ回してから上がる。真上に上げると Secrets Manager のラベル（アイコンの
+            # 真下にある）を縦線が貫く。破線ではない（破線での意味付けは規約が禁じている）。
+            #
+            # ラベルは経路の中点ではなく along=-0.15 に置く。中点は y=194 で、Secrets Manager
+            # のラベル 2 行目（y 171..190）に 5px 重なっていた。**JA では 1 行目と離れて
+            # 見えるので気づきにくく、実際に公開前の版で重なっていた。** -0.15 は y=210 で、
+            # ラベル 2 行目の下端 190 と AWS Transform アイコンの上端 238 の間に入る。
+            # x は縦線（70）から +105。EN の "Reads the certificate"（189px）の左端が 80 で
+            # 縦線を跨がない値。
             Edge(
                 "e_cert_edge",
                 "atx",
                 "secrets_manager",
                 "e_cert",
-                exit_at=(1, 0.5),
-                entry_at=(1, 0.5),
-                dashed=True,
-                points=((870, 278), (870, 110)),
-                offset=(0, -60, 0),
+                exit_at=(0, 0.5),
+                entry_at=(0, 0.5),
+                points=((70, 278), (70, 110)),
+                offset=(-0.15, 105, 0),
             ),
         ),
     )
@@ -681,33 +726,61 @@ def _finalize() -> Diagram:
     split"）を横並びの列に収めることはできない。縦は幅を争わないので、キャンバスを読者の
     カラム幅である 880px 側へ寄せられ、`FONT_BODY` で足りる。フェーズ名は左の桁に置き、
     ステージングの削除だけが右へ分岐する。
+
+    **境界は 2 枚ある。** 以前はこの図に境界が 1 枚しかなく、それが `Group` の既定である
+    AWS Cloud のバッジを付けたまま「Amazon FSx for NetApp ONTAP（検証用 SVM）」と名乗って
+    いた。バッジは雲、ラベルはストレージ — 読者には AWS Cloud の文字が無い雲として届く。
+    公式パッケージに SVM のバッジは無いので、SVM 側はバッジを持たず（`gr_icon=None`）、
+    左上に FSx for ONTAP のサービスアイコンを置いて名前を示す。AWS Cloud は外側に 1 枚
+    足した。他の 2 図と同じ構造になる。
     """
     return Diagram(
         name="atx-fsxn-finalize-flexclone",
         diagram_id="atx-fsxn-finalize-flexclone",
-        # 910px。内容の最も広い行に余白を足しただけで決めている。キャンバスを 100px 広げる
-        # ごとに、全ラベルへ掛かる縮小率が下がる。空きのあるキャンバスは無料ではない。
-        width=925,
-        height=710,
-        # 幅 865。英語の "(runs without interruption)" が Amazon EC2 の下で 208px あり、
-        # 850 だと枠線に触った。JA では収まっていたので、EN 側を別に見ないと気づかない。
-        groups=(Group("svm", "svm", 30, 80, 865, 600, dashed=True),),
+        # 955px。内側に境界が 1 枚増えた分（左右 25px ずつ）だけ 925 から広げている。
+        # 実効サイズは 16 × 880/979 = 14.4px で下限 14 を上回る。キャンバスを 100px 広げる
+        # ごとに全ラベルへ掛かる縮小率が下がるので、空きのあるキャンバスは無料ではない。
+        width=955,
+        height=840,
+        groups=(
+            Group("aws_cloud", "aws_cloud", 25, 30, 905, 780),
+            # 幅 855。英語の "(runs without interruption)" が Amazon EC2 の下で 208px あり、
+            # 850 だと枠線に触った。JA では収まっていたので、EN 側を別に見ないと気づかない。
+            # `spacing_left=112` は左上の 80px アイコン（62..142）を避ける値。
+            Group(
+                "svm",
+                "svm",
+                50,
+                105,
+                855,
+                690,
+                gr_icon=None,
+                dashed=True,
+                spacing_left=112,
+                spacing_top=30,
+            ),
+        ),
         boxes=(
-            Box("f2_staging", "f2_staging", 265, 158, 330, 64),
-            Box("f2_snapshot", "f2_snapshot", 265, 300, 330, 64),
-            Box("f2_clone", "f2_clone", 265, 430, 330, 64),
-            Box("f2_split", "f2_split", 265, 560, 330, 64),
+            Box("f2_staging", "f2_staging", 265, 230, 330, 64),
+            Box("f2_snapshot", "f2_snapshot", 265, 370, 330, 64),
+            Box("f2_clone", "f2_clone", 265, 500, 330, 64),
+            Box("f2_split", "f2_split", 265, 630, 330, 64),
             # 右へ分岐する唯一の枝。ステージングが消えることは本流ではなく副作用なので、
             # 縦の連鎖から外して置く。
-            Box("f2_deleted", "f2_deleted", 630, 300, 240, 64),
+            Box("f2_deleted", "f2_deleted", 630, 370, 240, 64),
         ),
         # フェーズ名は左の桁。段の間に挟むと、同じ y にエッジのラベルが来て衝突する。
+        # 左端は 75。SVM 境界の内側 25px で、最長の "SNAPSHOT フェーズ"（136px）が収まる。
         texts=(
-            Text("phase_snapshot", "phase_snapshot", 45, 238, 200, 48),
-            Text("phase_launch", "phase_launch", 45, 440, 200, 48),
-            Text("phase_finalize", "phase_finalize", 45, 570, 200, 48),
+            Text("phase_snapshot", "phase_snapshot", 75, 310, 170, 48),
+            Text("phase_launch", "phase_launch", 75, 510, 170, 48),
+            Text("phase_finalize", "phase_finalize", 75, 640, 170, 48),
         ),
-        nodes=(Node("f2_target_ec2", "ec2", "f2_target_ec2", *centred("ec2", 790, 592)),),
+        nodes=(
+            # SVM 境界の見出し。ラベルは境界側が持つので、アイコン自身は持たない。
+            Node("f2_svm", "fsx_ontap", "", 62, 117),
+            Node("f2_target_ec2", "ec2", "f2_target_ec2", *centred("ec2", 790, 662)),
+        ),
         edges=(
             Edge(
                 "f1",
@@ -735,6 +808,9 @@ def _finalize() -> Diagram:
             ),
             # 右へ出てから下へ折れる。ラベルは水平の区間に載せる。縦の区間に載せると
             # ステージングとスナップショットの箱の間で行き場がない。
+            # 破線ではない。破線で「本流ではない」を表すのは規約が禁じている（単色プリセット
+            # Open Arrow のみ）。この枝が副流であることは、縦の連鎖から外れた位置と
+            # 「約 9 分後」というラベルが示している。
             Edge(
                 "f4",
                 "f2_staging",
@@ -742,7 +818,6 @@ def _finalize() -> Diagram:
                 "e_delete",
                 exit_at=(1, 0.5),
                 entry_at=(0.5, 0),
-                dashed=True,
                 offset=(0, 0, -14),
             ),
             Edge(
@@ -868,7 +943,15 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         vertex(
             group.cid,
             label(group.label, lang),
-            group_style(group.gr_icon, stroke, p.ink, group.dashed, diagram.font_group),
+            group_style(
+                group.gr_icon,
+                stroke,
+                p.ink,
+                group.dashed,
+                diagram.font_group,
+                group.spacing_left,
+                group.spacing_top,
+            ),
             group.x,
             group.y,
             group.width,
