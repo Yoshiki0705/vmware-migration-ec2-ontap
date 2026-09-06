@@ -109,6 +109,13 @@ diagram-assets: ## 図の成果物の一貫性（アイコン非同梱・欠落�
 diagram-fonts: ## 図のラベルが可読性の下限を満たすか（実効サイズと fontSize の 2 つ）
 	$(PYTHON) tools/check_diagram_fonts.py --selftest >/dev/null
 	$(PYTHON) tools/check_diagram_fonts.py
+
+.PHONY: diagram-flow
+# 同じ理由で drift に入れる。向きとラベル位置はソースを読んでも分からず、書き出した画像に
+# しか現れない。PR #22 で 3 図を直したが、そのときは検査器がなかったので次に崩れても気づけない。
+diagram-flow: ## 図が右向き・下向きだけで読めるか（ラベルはアイコンの下、枠のタイトルは角）
+	$(PYTHON) tools/check_diagram_flow.py --selftest >/dev/null
+	$(PYTHON) tools/check_diagram_flow.py
 .PHONY: diagrams
 diagrams: ## 図を再生成し SVG / PNG を書き出す（AWS アイコンパッケージと draw.io が必要）
 	$(PYTHON) tools/build_diagrams.py --write --export
@@ -118,7 +125,7 @@ diagrams-check: ## committed の図が spec と一致するか（AWS アイコ�
 	$(PYTHON) tools/build_diagrams.py --check
 
 .PHONY: drift
-drift: agent-config context-budget diagram-assets diagram-fonts ## 逆戻り検出（設定の到達性 + 常時ロード予算 + 図の成果物 + ラベルの可読性）
+drift: agent-config context-budget diagram-assets diagram-fonts diagram-flow ## 逆戻り検出（設定の到達性 + 常時ロード予算 + 図の成果物 + ラベルの可読性と向き）
 
 .PHONY: ci
 ci: lint format-check test cfn-lint security headings drift ## CI が呼ぶ集約ターゲット
