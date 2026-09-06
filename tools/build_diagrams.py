@@ -127,8 +127,6 @@ class Palette:
     vpc_stroke: str
     box_stroke: str
     frame_stroke: str
-    note_fill: str
-    note_ink: str
 
 
 PALETTES = {
@@ -140,8 +138,6 @@ PALETTES = {
         vpc_stroke="#8C4FFF",
         box_stroke="#232F3E",
         frame_stroke="#666666",
-        note_fill="#F5F5F5",
-        note_ink="#333333",
     ),
     "dark": Palette(
         variant="Dark",
@@ -151,12 +147,18 @@ PALETTES = {
         vpc_stroke="#C9A0FF",
         box_stroke="#FFFFFF",
         frame_stroke="#B0B8C1",
-        note_fill="#2E3B4E",
-        note_ink="#D5DBDB",
     ),
 }
 
 # --- styles ------------------------------------------------------------------------------
+
+# 可読性の下限。`make diagram-fonts` が検査する。ラベルは画像が読者のカラム幅に縮小された
+# *後* の大きさで表示されるので、この 2 つの数値と `Diagram.width` は 1 つの決定である。16 なら
+# キャンバスは約 1000px まで、実効サイズ 14px を下回らずに使える。以前は 1480〜1500px の
+# キャンバスに 11 と 12 で、読者には約 6.5px で届いていた。
+# **数値だけ上げるとラベルが衝突する。** 幅を詰めるところまでが 1 組の変更。
+FONT_BODY = 16
+FONT_GROUP = 18
 
 GROUP_POINTS = (
     "points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],"
@@ -164,25 +166,25 @@ GROUP_POINTS = (
 )
 
 
-def group_style(gr_icon: str, stroke: str, ink: str, dashed: bool) -> str:
+def group_style(gr_icon: str, stroke: str, ink: str, dashed: bool, size: int) -> str:
     return (
         f"{GROUP_POINTS};outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;"
-        f"fontSize=12;fontStyle=1;fontColor={ink};shape=mxgraph.aws4.group;"
+        f"fontSize={size};fontStyle=1;fontColor={ink};shape=mxgraph.aws4.group;"
         f"grIcon=mxgraph.aws4.{gr_icon};strokeColor={stroke};fillColor=none;"
         f"verticalAlign=top;align=left;spacingLeft=30;spacingTop=4;"
         f"dashed={1 if dashed else 0};"
     )
 
 
-def icon_style(data_uri: str, ink: str) -> str:
+def icon_style(data_uri: str, ink: str, size: int) -> str:
     return (
         "sketch=0;html=1;shape=image;verticalLabelPosition=bottom;verticalAlign=top;"
-        "labelPosition=center;align=center;imageAspect=1;aspect=fixed;fontSize=11;"
+        f"labelPosition=center;align=center;imageAspect=1;aspect=fixed;fontSize={size};"
         f"fontColor={ink};image={data_uri};"
     )
 
 
-def box_style(stroke: str, ink: str) -> str:
+def box_style(stroke: str, ink: str, size: int) -> str:
     """A named ONTAP object with no icon in the AWS package.
 
     A Snapshot, a FlexClone and a LUN are ONTAP mechanisms. The AWS package has snapshot
@@ -192,20 +194,20 @@ def box_style(stroke: str, ink: str) -> str:
     """
     return (
         f"rounded=1;whiteSpace=wrap;html=1;strokeColor={stroke};fillColor=none;"
-        f"fontColor={ink};fontSize=11;verticalAlign=middle;align=center;"
+        f"fontColor={ink};fontSize={size};verticalAlign=middle;align=center;"
     )
 
 
-def frame_style(stroke: str, ink: str) -> str:
+def frame_style(stroke: str, ink: str, size: int) -> str:
     """A dashed grouping, used where an edge must arrive at a set rather than at one icon."""
     return (
         f"rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor={stroke};"
-        f"fillColor=none;fontColor={ink};fontSize=11;verticalAlign=top;align=center;"
+        f"fillColor=none;fontColor={ink};fontSize={size};verticalAlign=top;align=center;"
         "spacingTop=6;"
     )
 
 
-def edge_style(ink: str, background: str) -> str:
+def edge_style(ink: str, background: str, size: int) -> str:
     """An edge and its label.
 
     `labelBackgroundColor` is set explicitly because draw.io's default is an opaque white
@@ -215,48 +217,35 @@ def edge_style(ink: str, background: str) -> str:
     """
     return (
         "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;"
-        f"strokeColor={ink};strokeWidth=1;fontSize=11;fontColor={ink};"
+        f"strokeColor={ink};strokeWidth=1;fontSize={size};fontColor={ink};"
         f"labelBackgroundColor={background};"
     )
 
 
-def note_style(fill: str, stroke: str, ink: str) -> str:
-    return (
-        f"rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor={stroke};"
-        f"fillColor={fill};fontColor={ink};fontSize=11;align=left;verticalAlign=top;"
-        "spacingLeft=10;spacingTop=6;"
-    )
-
-
-def text_style(ink: str) -> str:
+def text_style(ink: str, size: int) -> str:
     return (
         "text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;"
-        f"fontSize=11;fontStyle=1;fontColor={ink};"
+        f"fontSize={size};fontStyle=1;fontColor={ink};"
     )
 
 
-# Figure annotations are read as items, not as a paragraph: a marker, a headline that stops
-# at the noun, then the detail. `※` is the Japanese footnote marker and `*` the English one,
-# so the two languages differ here even though the structure does not.
-#
 # `<b>` and `<br>` reach draw.io because the cell style carries `html=1`. They are written
 # as literal characters and escaped on the way into the attribute; `quoteattr` also escapes
 # `"`, which plain `escape()` does not — an unescaped quote inside a value terminates the
 # attribute, and draw.io responds by silently dropping that cell and every cell after it
 # while still exporting successfully.
-def note_body(heading: str, items: tuple[tuple[str, str], ...], marker: str) -> str:
-    parts = [f"<b>{heading}</b>"]
-    for index, (headline, detail) in enumerate(items, start=1):
-        parts.append(f"{marker}{index} <b>{headline}</b>")
-        parts.append(detail)
-    return "<br>".join(parts)
-
-
 # --- labels ------------------------------------------------------------------------------
 
 # U+203B (※) sits outside every CJK block, so a reference marker would otherwise survive
 # untranslated into the English file with the residue gate reporting nothing. U+3000-303F
 # covers 、。「」 for the same reason.
+# `notes1` / `notes2` と `Note` シェイプは削除した。図の中で最も文字数の多い部分であり、
+# 画像がカラム幅に縮小されたとき最初に読めなくなる場所でありながら、検索も選択も翻訳も
+# スクリーンリーダーでの読み取りもできない。載っていた実測値はすべて
+# `docs/ja|en/atx-fsxn-ga-verification.md` の本文と表にあるので、消えたのは事実ではなく
+# 二重管理である。**機構ごと消したのは意図的で**、`Note` を残すことは次の図で文字の壁を
+# 画像に入れる誘いになる。
+
 CJK = re.compile(r"[\u203b\u3000-\u303f\u3040-\u30ff\u4e00-\u9fff\uff00-\uffef]")
 
 # Service and protocol names stay as they are in both languages: the naming rule requires
@@ -297,8 +286,8 @@ LABELS: dict[str, dict[str, str]] = {
     "boot_volume": {"ja": "ブート 8 GiB", "en": "Boot 8 GiB"},
     "privatelink": {"ja": "AWS PrivateLink", "en": "AWS PrivateLink"},
     "nlb": {
-        "ja": "Network Load Balancer\n（自動作成 ※2）",
-        "en": "Network Load Balancer\n(auto-created *2)",
+        "ja": "Network Load Balancer\n（自動作成）",
+        "en": "Network Load Balancer\n(auto-created)",
     },
     "secrets_manager": {
         "ja": "AWS Secrets Manager\n（クライアント証明書）",
@@ -311,49 +300,11 @@ LABELS: dict[str, dict[str, str]] = {
     "control_plane": {"ja": "管理経路", "en": "Control path"},
     "data_plane": {"ja": "データ経路", "en": "Data path"},
     "e_agent": {"ja": "ブロックレプリケーション", "en": "Block replication"},
-    "e_boot": {"ja": "ブート ※1", "en": "Boot *1"},
-    "e_data": {"ja": "データ ※1", "en": "Data *1"},
-    "e_iscsi": {"ja": "iSCSI ※3", "en": "iSCSI *3"},
+    "e_boot": {"ja": "ブート", "en": "Boot"},
+    "e_data": {"ja": "データ", "en": "Data"},
+    "e_iscsi": {"ja": "iSCSI", "en": "iSCSI"},
     "e_cert": {"ja": "証明書を取得", "en": "Reads the certificate"},
     "e_pl": {"ja": "証明書認証", "en": "Certificate auth"},
-    "notes1": {
-        "ja": note_body(
-            "補足",
-            (
-                (
-                    "ブートは常に Amazon EBS",
-                    "FSx for ONTAP に置けるのはデータボリュームのみ。ブートを FSx へ向ける設定は存在しない",
-                ),
-                (
-                    "Finalize 後も残る Network Load Balancer",
-                    "SETUP_FSX_PROXY が NLB と VPC エンドポイントサービスを自動作成する。Finalize では削除されず、手動撤去が必要",
-                ),
-                (
-                    "ゲストからは 2 パスの multipath デバイス",
-                    "HA ペアの各ノードに iSCSI LIF が 1 つ。ALUA で prio 50 が active、prio 10 が enabled",
-                ),
-            ),
-            "※",
-        ),
-        "en": note_body(
-            "Notes",
-            (
-                (
-                    "Boot always stays on Amazon EBS",
-                    "Only data volumes can live on FSx for ONTAP. There is no setting that points boot at FSx",
-                ),
-                (
-                    "The Network Load Balancer outlives Finalize",
-                    "SETUP_FSX_PROXY creates an NLB and a VPC endpoint service. Finalize does not delete them; teardown is manual",
-                ),
-                (
-                    "Two multipath devices in the guest",
-                    "One iSCSI LIF per HA pair node. Under ALUA, prio 50 is active and prio 10 enabled",
-                ),
-            ),
-            "*",
-        ),
-    },
     # --- figure 2 -------------------------------------------------------------------
     "svm": {
         "ja": "Amazon FSx for NetApp ONTAP（検証用 SVM）",
@@ -383,60 +334,14 @@ LABELS: dict[str, dict[str, str]] = {
         "ja": "Amazon EC2\n（無停止で稼働）",
         "en": "Amazon EC2\n(runs without interruption)",
     },
-    "e_snap": {"ja": "44 秒 ※1", "en": "44s *1"},
+    "e_snap": {"ja": "44 秒", "en": "44s"},
     "e_clone": {"ja": "FlexClone 作成", "en": "FlexClone created"},
-    "e_split": {"ja": "Finalize: 60 秒未満 ※2", "en": "Finalize: under 60s *2"},
-    "e_delete": {"ja": "約 9 分後 ※3", "en": "About 9 min later *3"},
-    "e_serve": {"ja": "iSCSI 提供は継続 ※4", "en": "iSCSI keeps serving *4"},
+    "e_split": {"ja": "Finalize: 60 秒未満", "en": "Finalize: under 60s"},
+    "e_delete": {"ja": "約 9 分後", "en": "About 9 min later"},
+    "e_serve": {"ja": "iSCSI 提供は継続", "en": "iSCSI keeps serving"},
     "phase_snapshot": {"ja": "SNAPSHOT フェーズ", "en": "SNAPSHOT phase"},
     "phase_launch": {"ja": "LAUNCH フェーズ", "en": "LAUNCH phase"},
     "phase_finalize": {"ja": "Finalize", "en": "Finalize"},
-    "notes2": {
-        "ja": note_body(
-            "補足（8 GiB のデータで実測、2026-09-04、ONTAP 9.18.1P3D1）",
-            (
-                (
-                    "コピーではなくメタデータ操作",
-                    "SNAPSHOT フェーズはボリューム Snapshot の作成。8 GiB に対して 44 秒。データ量に対する伸び方は 1 点しか測っていない",
-                ),
-                (
-                    "容量が最大になるのは Finalize",
-                    "スプリットでクローンの物理消費が 35.5 MiB から 8.57 GiB へ。移行データ 1 本分の追加容量が必要",
-                ),
-                (
-                    "ステージング削除までの間隔",
-                    "スプリット完了から約 9 分。この間は両ボリュームが物理容量を占める（合計 約 16.6 GiB）",
-                ),
-                (
-                    "スプリットは無停止",
-                    "マウント維持、sha256 一致、I/O エラーとパスダウンはいずれも 0 件",
-                ),
-            ),
-            "※",
-        ),
-        "en": note_body(
-            "Notes (measured on 8 GiB of data, 2026-09-04, ONTAP 9.18.1P3D1)",
-            (
-                (
-                    "A metadata operation, not a copy",
-                    "The SNAPSHOT phase creates a volume Snapshot: 44s for 8 GiB. Growth against data volume was measured at one point only",
-                ),
-                (
-                    "Finalize is the point of peak capacity",
-                    "The split takes the clone from 35.5 MiB to 8.57 GiB physical. One extra copy of the migrated data is required",
-                ),
-                (
-                    "The gap before staging is deleted",
-                    "About 9 minutes after the split completes. Both volumes hold physical capacity in that window (about 16.6 GiB total)",
-                ),
-                (
-                    "The split is non-disruptive",
-                    "Mounts held, sha256 matched, and zero I/O errors or path-down events",
-                ),
-            ),
-            "*",
-        ),
-    },
 }
 
 
@@ -516,16 +421,6 @@ class Text:
 
 
 @dataclass(frozen=True)
-class Note:
-    cid: str
-    label: str
-    x: int
-    y: int
-    width: int
-    height: int
-
-
-@dataclass(frozen=True)
 class Edge:
     cid: str
     source: str
@@ -552,13 +447,18 @@ class Diagram:
     diagram_id: str
     width: int
     height: int
+    # 下限が既定。下回る値を持てるのは、レイアウトがまだ下限に対応していない図だけで、
+    # その図は diagram-font-debt.txt にも載っている。数値だけ上げるとラベルが衝突するので、
+    # 「下限を満たしていない」と「壊れた絵を出荷している」を同時に避けるには、この 2 つが
+    # 一緒に動く必要がある。**レイアウトを決めたら、この上書きと負債の行は同じ変更で消える。**
+    font_body: int = FONT_BODY
+    font_group: int = FONT_GROUP
     groups: tuple[Group, ...] = ()
     frames: tuple[Frame, ...] = ()
     boxes: tuple[Box, ...] = ()
     texts: tuple[Text, ...] = ()
     nodes: tuple[Node, ...] = ()
     edges: tuple[Edge, ...] = ()
-    notes: tuple[Note, ...] = ()
 
     def filename(self, lang: str, theme: str) -> str:
         # Japanese keeps the bare name: a published blog post links the exported PNG by
@@ -593,6 +493,17 @@ def _overview() -> Diagram:
         diagram_id="atx-fsxn-migration-overview",
         width=1500,
         height=900,
+        # 下限を満たしていない。1500px のキャンバスでは下限が fontSize 24 で、その大きさでは
+        # 最長ラベル（「（レプリケーションサーバー）」と "Amazon Elastic Block Store"、
+        # いずれも 16px で 210px を超える）が横 1 列の桁に収まらない。上げるだけでは
+        # 読めない字が衝突した字に変わるだけなので、レイアウトが決まるまで据え置く。
+        #
+        # 縦積みは選べない。この図の Edge が書いているとおり、ラベルはアイコンの下に置くので
+        # エッジを下方向へ出せず、縦の連鎖にすると各エッジが自分のラベルを貫く。残る形は
+        # データ経路と管理経路への分割で、それは記事側の参照と alt text を変える判断になる。
+        # 詳細は diagram-font-debt.txt。
+        font_body=11,
+        font_group=12,
         groups=(
             Group("aws_cloud", "aws_cloud", 40, 40, 1420, 620),
             Group(
@@ -706,7 +617,6 @@ def _overview() -> Diagram:
                 offset=(0, 62, 0),
             ),
         ),
-        notes=(Note("notes1", "notes1", 80, 690, 1380, 160),),
     )
 
 
@@ -716,35 +626,39 @@ def _finalize() -> Diagram:
     Drawn because the numbers invert across Finalize and a reader planning capacity from
     the pre-Finalize figure will under-provision. The three ONTAP objects are boxes rather
     than icons: see `box_style`.
+
+    **縦積みである。** 横に 4 段を並べると図幅は 1480px を要し、その幅では可読性の下限が
+    `fontSize` 24 になる。24 でこのラベル（最長は英語の "Independent FlexVol after the
+    split"）を横並びの列に収めることはできない。縦は幅を争わないので、キャンバスを読者の
+    カラム幅である 880px 側へ寄せられ、`FONT_BODY` で足りる。フェーズ名は左の桁に置き、
+    ステージングの削除だけが右へ分岐する。
     """
     return Diagram(
         name="atx-fsxn-finalize-flexclone",
         diagram_id="atx-fsxn-finalize-flexclone",
-        width=1480,
-        height=790,
-        groups=(Group("svm", "svm", 40, 150, 1180, 380, dashed=True),),
+        # 910px。内容の最も広い行に余白を足しただけで決めている。キャンバスを 100px 広げる
+        # ごとに、全ラベルへ掛かる縮小率が下がる。空きのあるキャンバスは無料ではない。
+        width=925,
+        height=710,
+        # 幅 865。英語の "(runs without interruption)" が Amazon EC2 の下で 208px あり、
+        # 850 だと枠線に触った。JA では収まっていたので、EN 側を別に見ないと気づかない。
+        groups=(Group("svm", "svm", 30, 80, 865, 600, dashed=True),),
         boxes=(
-            Box("f2_staging", "f2_staging", 110, 220, 210, 60),
-            Box("f2_snapshot", "f2_snapshot", 110, 390, 210, 60),
-            Box("f2_clone", "f2_clone", 470, 390, 240, 60),
-            Box("f2_split", "f2_split", 860, 390, 240, 60),
-            Box("f2_deleted", "f2_deleted", 860, 220, 240, 60),
+            Box("f2_staging", "f2_staging", 265, 158, 330, 64),
+            Box("f2_snapshot", "f2_snapshot", 265, 300, 330, 64),
+            Box("f2_clone", "f2_clone", 265, 430, 330, 64),
+            Box("f2_split", "f2_split", 265, 560, 330, 64),
+            # 右へ分岐する唯一の枝。ステージングが消えることは本流ではなく副作用なので、
+            # 縦の連鎖から外して置く。
+            Box("f2_deleted", "f2_deleted", 630, 300, 240, 64),
         ),
+        # フェーズ名は左の桁。段の間に挟むと、同じ y にエッジのラベルが来て衝突する。
         texts=(
-            Text("phase_snapshot", "phase_snapshot", 90, 320, 250, 30),
-            Text("phase_launch", "phase_launch", 450, 320, 280, 30),
-            Text("phase_finalize", "phase_finalize", 840, 320, 280, 30),
+            Text("phase_snapshot", "phase_snapshot", 45, 238, 200, 48),
+            Text("phase_launch", "phase_launch", 45, 440, 200, 48),
+            Text("phase_finalize", "phase_finalize", 45, 570, 200, 48),
         ),
-        # No free-standing FSx for ONTAP icon: the group is already titled with the
-        # service name, and an icon carrying no label breaks the label rule.
-        nodes=(
-            Node(
-                "f2_target_ec2",
-                "ec2",
-                "f2_target_ec2",
-                *centred("ec2", 1310, 420),
-            ),
-        ),
+        nodes=(Node("f2_target_ec2", "ec2", "f2_target_ec2", *centred("ec2", 790, 592)),),
         edges=(
             Edge(
                 "f1",
@@ -753,33 +667,32 @@ def _finalize() -> Diagram:
                 "e_snap",
                 exit_at=(0.5, 1),
                 entry_at=(0.5, 0),
-                offset=(-0.55, 44, 0),
             ),
             Edge(
                 "f2",
                 "f2_snapshot",
                 "f2_clone",
                 "e_clone",
-                exit_at=(1, 0.5),
-                entry_at=(0, 0.5),
-                offset=(0, 0, -14),
+                exit_at=(0.5, 1),
+                entry_at=(0.5, 0),
             ),
             Edge(
                 "f3",
                 "f2_clone",
                 "f2_split",
                 "e_split",
-                exit_at=(1, 0.5),
-                entry_at=(0, 0.5),
-                offset=(0, 0, -14),
+                exit_at=(0.5, 1),
+                entry_at=(0.5, 0),
             ),
+            # 右へ出てから下へ折れる。ラベルは水平の区間に載せる。縦の区間に載せると
+            # ステージングとスナップショットの箱の間で行き場がない。
             Edge(
                 "f4",
                 "f2_staging",
                 "f2_deleted",
                 "e_delete",
                 exit_at=(1, 0.5),
-                entry_at=(0, 0.5),
+                entry_at=(0.5, 0),
                 dashed=True,
                 offset=(0, 0, -14),
             ),
@@ -793,7 +706,6 @@ def _finalize() -> Diagram:
                 offset=(0, 0, -14),
             ),
         ),
-        notes=(Note("notes2", "notes2", 40, 570, 1400, 190),),
     )
 
 
@@ -907,7 +819,7 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         vertex(
             group.cid,
             label(group.label, lang),
-            group_style(group.gr_icon, stroke, p.ink, group.dashed),
+            group_style(group.gr_icon, stroke, p.ink, group.dashed, diagram.font_group),
             group.x,
             group.y,
             group.width,
@@ -918,7 +830,7 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         vertex(
             frame.cid,
             label(frame.label, lang),
-            frame_style(p.frame_stroke, p.ink),
+            frame_style(p.frame_stroke, p.ink, diagram.font_body),
             frame.x,
             frame.y,
             frame.width,
@@ -928,7 +840,7 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         vertex(
             box.cid,
             label(box.label, lang),
-            box_style(p.box_stroke, p.ink),
+            box_style(p.box_stroke, p.ink, diagram.font_body),
             box.x,
             box.y,
             box.width,
@@ -938,7 +850,7 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         vertex(
             text.cid,
             label(text.label, lang),
-            text_style(p.ink),
+            text_style(p.ink, diagram.font_body),
             text.x,
             text.y,
             text.width,
@@ -949,14 +861,14 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         vertex(
             node.cid,
             label(node.label, lang) if node.label else "",
-            icon_style(uris[(node.icon, theme)], p.ink),
+            icon_style(uris[(node.icon, theme)], p.ink, diagram.font_body),
             node.x,
             node.y,
             size,
             size,
         )
     for edge in diagram.edges:
-        style = edge_style(p.ink, p.background)
+        style = edge_style(p.ink, p.background, diagram.font_body)
         if edge.exit_at is not None:
             style += f"exitX={edge.exit_at[0]};exitY={edge.exit_at[1]};exitDx=0;exitDy=0;"
         if edge.entry_at is not None:
@@ -979,16 +891,6 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
         else:
             lines.append('          <mxGeometry relative="1" as="geometry" />')
         lines.append("        </mxCell>")
-    for note in diagram.notes:
-        vertex(
-            note.cid,
-            label(note.label, lang),
-            note_style(p.note_fill, p.frame_stroke, p.note_ink),
-            note.x,
-            note.y,
-            note.width,
-            note.height,
-        )
 
     lines += ["      </root>", "    </mxGraphModel>", "  </diagram>", "</mxfile>", ""]
     return "\n".join(lines)
@@ -1152,7 +1054,6 @@ def main() -> int:
                     + [c.cid for c in diagram.texts]
                     + [c.cid for c in diagram.nodes]
                     + [c.cid for c in diagram.edges]
-                    + [c.cid for c in diagram.notes]
                 ):
                     if f'id="{cid}"' not in xml:
                         raise SystemExit(f"build_diagrams: cell {cid!r} missing from {path}")
@@ -1161,7 +1062,7 @@ def main() -> int:
                     export(diagram, lang, theme)
         for group in diagram.groups:
             seen.add(group.label)
-        for collection in (diagram.frames, diagram.boxes, diagram.texts, diagram.notes):
+        for collection in (diagram.frames, diagram.boxes, diagram.texts):
             for item in collection:
                 seen.add(item.label)
         for node in diagram.nodes:
