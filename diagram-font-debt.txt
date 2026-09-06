@@ -1,0 +1,21 @@
+# 可読性の下限を満たしていない図。tools/check_diagram_fonts.py が読む。
+#
+# このファイルは減る方向にしか動かせない。未記載の違反は失敗し、記載されているのに
+# 下限を満たすようになったファイルも失敗する（行を消す強制力）。行の追加は可能だが、
+# 図の変更と同じ diff に現れるのでレビューで見える。
+#
+# 下の 8 ファイルは検査器より前に作られたもので、いずれも 1480〜1500px のキャンバスに
+# fontSize 11 / 12。880px のカラムに収まると実効 6.5〜7.1px になる。
+#
+# 直すには先に決めることがある。図内の補足ボックスを記事本文へ移すかどうか。
+# 移さない場合、下限を満たす font では補足の最長行がキャンバス幅を要求し、キャンバスを
+# 広げると必要 font がさらに上がる（1500px なら 24）。移す場合は図の再レイアウトだけで済む。
+# 経緯: docs/agent/ 相当のガードは ~/.kiro/steering/global-document-readability.md。
+docs/_assets/diagrams/atx-fsxn-migration-overview.drawio
+docs/_assets/diagrams/atx-fsxn-migration-overview-en.drawio
+docs/_assets/diagrams/atx-fsxn-migration-overview-dark.drawio
+docs/_assets/diagrams/atx-fsxn-migration-overview-en-dark.drawio
+docs/_assets/diagrams/atx-fsxn-finalize-flexclone.drawio
+docs/_assets/diagrams/atx-fsxn-finalize-flexclone-en.drawio
+docs/_assets/diagrams/atx-fsxn-finalize-flexclone-dark.drawio
+docs/_assets/diagrams/atx-fsxn-finalize-flexclone-en-dark.drawio

@@ -103,6 +103,12 @@ context-budget: ## 常時ロードコンテキストの上限とローダーの�
 diagram-assets: ## 図の成果物の一貫性（アイコン非同梱・欠落・EN への日本語残留）
 	$(PYTHON) scripts/check_diagram_assets.py
 
+.PHONY: diagram-fonts
+# diagram-assets と違い、AWS アイコンパッケージも draw.io も要らない。committed の
+# .drawio と .svg だけを読むので drift に入れて CI で常時走らせる。
+diagram-fonts: ## 図のラベルが可読性の下限を満たすか（実効サイズと fontSize の 2 つ）
+	$(PYTHON) tools/check_diagram_fonts.py --selftest >/dev/null
+	$(PYTHON) tools/check_diagram_fonts.py
 .PHONY: diagrams
 diagrams: ## 図を再生成し SVG / PNG を書き出す（AWS アイコンパッケージと draw.io が必要）
 	$(PYTHON) tools/build_diagrams.py --write --export
@@ -112,7 +118,7 @@ diagrams-check: ## committed の図が spec と一致するか（AWS アイコ�
 	$(PYTHON) tools/build_diagrams.py --check
 
 .PHONY: drift
-drift: agent-config context-budget diagram-assets ## 逆戻り検出（設定の到達性 + 常時ロード予算 + 図の成果物）
+drift: agent-config context-budget diagram-assets diagram-fonts ## 逆戻り検出（設定の到達性 + 常時ロード予算 + 図の成果物 + ラベルの可読性）
 
 .PHONY: ci
 ci: lint format-check test cfn-lint security headings drift ## CI が呼ぶ集約ターゲット
