@@ -1,67 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mxfile host="app.diagrams.net" modified="2026-09-05T00:00:00.000Z" agent="build_diagrams.py" version="24.0.0" type="device">
   <diagram id="atx-fsxn-finalize-flexclone-en" name="atx-fsxn-finalize-flexclone-en">
-    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1480" pageHeight="790" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="925" pageHeight="710" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="svm" value="Amazon FSx for NetApp ONTAP (verification SVM)" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=1;fontColor=#232F3E;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;spacingTop=4;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="40" y="150" width="1180" height="380" as="geometry" />
+        <mxCell id="svm" value="Amazon FSx for NetApp ONTAP (verification SVM)" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#232F3E;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;spacingTop=4;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="80" width="865" height="600" as="geometry" />
         </mxCell>
-        <mxCell id="f2_staging" value="Staging FlexVol&#10;8.03 GiB physical" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=11;verticalAlign=middle;align=center;" vertex="1" parent="1">
-          <mxGeometry x="110" y="220" width="210" height="60" as="geometry" />
+        <mxCell id="f2_staging" value="Staging FlexVol&#10;8.03 GiB physical" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=16;verticalAlign=middle;align=center;" vertex="1" parent="1">
+          <mxGeometry x="265" y="158" width="330" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="f2_snapshot" value="Volume Snapshot&#10;(the MGN SNAPSHOT phase)" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=11;verticalAlign=middle;align=center;" vertex="1" parent="1">
-          <mxGeometry x="110" y="390" width="210" height="60" as="geometry" />
+        <mxCell id="f2_snapshot" value="Volume Snapshot&#10;(the MGN SNAPSHOT phase)" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=16;verticalAlign=middle;align=center;" vertex="1" parent="1">
+          <mxGeometry x="265" y="300" width="330" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="f2_clone" value="Target FlexVol = FlexClone&#10;35.5 MiB physical" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=11;verticalAlign=middle;align=center;" vertex="1" parent="1">
-          <mxGeometry x="470" y="390" width="240" height="60" as="geometry" />
+        <mxCell id="f2_clone" value="Target FlexVol = FlexClone&#10;35.5 MiB physical" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=16;verticalAlign=middle;align=center;" vertex="1" parent="1">
+          <mxGeometry x="265" y="430" width="330" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="f2_split" value="Independent FlexVol after the split&#10;8.57 GiB physical" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=11;verticalAlign=middle;align=center;" vertex="1" parent="1">
-          <mxGeometry x="860" y="390" width="240" height="60" as="geometry" />
+        <mxCell id="f2_split" value="Independent FlexVol after the split&#10;8.57 GiB physical" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=16;verticalAlign=middle;align=center;" vertex="1" parent="1">
+          <mxGeometry x="265" y="560" width="330" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="f2_deleted" value="Staging FlexVol is deleted" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=11;verticalAlign=middle;align=center;" vertex="1" parent="1">
-          <mxGeometry x="860" y="220" width="240" height="60" as="geometry" />
+        <mxCell id="f2_deleted" value="Staging FlexVol is deleted" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#232F3E;fillColor=none;fontColor=#232F3E;fontSize=16;verticalAlign=middle;align=center;" vertex="1" parent="1">
+          <mxGeometry x="630" y="300" width="240" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="phase_snapshot" value="SNAPSHOT phase" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="90" y="320" width="250" height="30" as="geometry" />
+        <mxCell id="phase_snapshot" value="SNAPSHOT phase" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="45" y="238" width="200" height="48" as="geometry" />
         </mxCell>
-        <mxCell id="phase_launch" value="LAUNCH phase" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="450" y="320" width="280" height="30" as="geometry" />
+        <mxCell id="phase_launch" value="LAUNCH phase" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="45" y="440" width="200" height="48" as="geometry" />
         </mxCell>
-        <mxCell id="phase_finalize" value="Finalize" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="840" y="320" width="280" height="30" as="geometry" />
+        <mxCell id="phase_finalize" value="Finalize" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="45" y="570" width="200" height="48" as="geometry" />
         </mxCell>
-        <mxCell id="f2_target_ec2" value="Amazon EC2&#10;(runs without interruption)" style="sketch=0;html=1;shape=image;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;imageAspect=1;aspect=fixed;fontSize=11;fontColor=#232F3E;image=data:image/svg+xml,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tRUMyXzY0PC90aXRsZT4KICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS82NC9BcmNoX0FtYXpvbi1FQzJfNjQiIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS1CRy82NC9Db21wdXRlIiBmaWxsPSIjRUQ3MTAwIj4KICAgICAgICAgICAgPHJlY3QgaWQ9IlJlY3RhbmdsZSIgeD0iMCIgeT0iMCIgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIj48L3JlY3Q+CiAgICAgICAgPC9nPgogICAgICAgIDxwYXRoIGQ9Ik0yNyw1MyBMNTIsNTMgTDUyLDI4IEwyNywyOCBMMjcsNTMgWiBNNTQsMjggTDU4LDI4IEw1OCwzMCBMNTQsMzAgTDU0LDM0IEw1OCwzNCBMNTgsMzYgTDU0LDM2IEw1NCwzOSBMNTgsMzkgTDU4LDQxIEw1NCw0MSBMNTQsNDUgTDU4LDQ1IEw1OCw0NyBMNTQsNDcgTDU0LDUxIEw1OCw1MSBMNTgsNTMgTDU0LDUzIEw1NCw1My4xMzYgQzU0LDU0LjE2NCA1My4xNjQsNTUgNTIuMTM2LDU1IEw1Miw1NSBMNTIsNTkgTDUwLDU5IEw1MCw1NSBMNDYsNTUgTDQ2LDU5IEw0NCw1OSBMNDQsNTUgTDQxLDU1IEw0MSw1OSBMMzksNTkgTDM5LDU1IEwzNSw1NSBMMzUsNTkgTDMzLDU5IEwzMyw1NSBMMjksNTUgTDI5LDU5IEwyNyw1OSBMMjcsNTUgTDI2Ljg2NCw1NSBDMjUuODM2LDU1IDI1LDU0LjE2NCAyNSw1My4xMzYgTDI1LDUzIEwyMiw1MyBMMjIsNTEgTDI1LDUxIEwyNSw0NyBMMjIsNDcgTDIyLDQ1IEwyNSw0NSBMMjUsNDEgTDIyLDQxIEwyMiwzOSBMMjUsMzkgTDI1LDM2IEwyMiwzNiBMMjIsMzQgTDI1LDM0IEwyNSwzMCBMMjIsMzAgTDIyLDI4IEwyNSwyOCBMMjUsMjcuODY0IEMyNSwyNi44MzYgMjUuODM2LDI2IDI2Ljg2NCwyNiBMMjcsMjYgTDI3LDIyIEwyOSwyMiBMMjksMjYgTDMzLDI2IEwzMywyMiBMMzUsMjIgTDM1LDI2IEwzOSwyNiBMMzksMjIgTDQxLDIyIEw0MSwyNiBMNDQsMjYgTDQ0LDIyIEw0NiwyMiBMNDYsMjYgTDUwLDI2IEw1MCwyMiBMNTIsMjIgTDUyLDI2IEw1Mi4xMzYsMjYgQzUzLjE2NCwyNiA1NCwyNi44MzYgNTQsMjcuODY0IEw1NCwyOCBaIE00MSw2NS44NzYgQzQxLDY1Ljk0NCA0MC45NDQsNjYgNDAuODc2LDY2IEwxNC4xMjQsNjYgQzE0LjA1Niw2NiAxNCw2NS45NDQgMTQsNjUuODc2IEwxNCwzOS4xMjQgQzE0LDM5LjA1NiAxNC4wNTYsMzkgMTQuMTI0LDM5IEwyMCwzOSBMMjAsMzcgTDE0LjEyNCwzNyBDMTIuOTUzLDM3IDEyLDM3Ljk1MyAxMiwzOS4xMjQgTDEyLDY1Ljg3NiBDMTIsNjcuMDQ3IDEyLjk1Myw2OCAxNC4xMjQsNjggTDQwLjg3Niw2OCBDNDIuMDQ3LDY4IDQzLDY3LjA0NyA0Myw2NS44NzYgTDQzLDYxIEw0MSw2MSBMNDEsNjUuODc2IFogTTY4LDE0LjEyNCBMNjgsNDAuODc2IEM2OCw0Mi4wNDcgNjcuMDQ3LDQzIDY1Ljg3Niw0MyBMNjAsNDMgTDYwLDQxIEw2NS44NzYsNDEgQzY1Ljk0NCw0MSA2Niw0MC45NDQgNjYsNDAuODc2IEw2NiwxNC4xMjQgQzY2LDE0LjA1NiA2NS45NDQsMTQgNjUuODc2LDE0IEwzOS4xMjQsMTQgQzM5LjA1NiwxNCAzOSwxNC4wNTYgMzksMTQuMTI0IEwzOSwyMCBMMzcsMjAgTDM3LDE0LjEyNCBDMzcsMTIuOTUzIDM3Ljk1MywxMiAzOS4xMjQsMTIgTDY1Ljg3NiwxMiBDNjcuMDQ3LDEyIDY4LDEyLjk1MyA2OCwxNC4xMjQgTDY4LDE0LjEyNCBaIiBpZD0iQW1hem9uLUVDMl9JY29uXzY0X1NxdWlkIiBmaWxsPSIjRkZGRkZGIj48L3BhdGg+CiAgICA8L2c+Cjwvc3ZnPg==;" vertex="1" parent="1">
-          <mxGeometry x="1270" y="380" width="80" height="80" as="geometry" />
+        <mxCell id="f2_target_ec2" value="Amazon EC2&#10;(runs without interruption)" style="sketch=0;html=1;shape=image;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;imageAspect=1;aspect=fixed;fontSize=16;fontColor=#232F3E;image=data:image/svg+xml,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODBweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODAgODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+SWNvbi1BcmNoaXRlY3R1cmUvNjQvQXJjaF9BbWF6b24tRUMyXzY0PC90aXRsZT4KICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS82NC9BcmNoX0FtYXpvbi1FQzJfNjQiIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxnIGlkPSJJY29uLUFyY2hpdGVjdHVyZS1CRy82NC9Db21wdXRlIiBmaWxsPSIjRUQ3MTAwIj4KICAgICAgICAgICAgPHJlY3QgaWQ9IlJlY3RhbmdsZSIgeD0iMCIgeT0iMCIgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIj48L3JlY3Q+CiAgICAgICAgPC9nPgogICAgICAgIDxwYXRoIGQ9Ik0yNyw1MyBMNTIsNTMgTDUyLDI4IEwyNywyOCBMMjcsNTMgWiBNNTQsMjggTDU4LDI4IEw1OCwzMCBMNTQsMzAgTDU0LDM0IEw1OCwzNCBMNTgsMzYgTDU0LDM2IEw1NCwzOSBMNTgsMzkgTDU4LDQxIEw1NCw0MSBMNTQsNDUgTDU4LDQ1IEw1OCw0NyBMNTQsNDcgTDU0LDUxIEw1OCw1MSBMNTgsNTMgTDU0LDUzIEw1NCw1My4xMzYgQzU0LDU0LjE2NCA1My4xNjQsNTUgNTIuMTM2LDU1IEw1Miw1NSBMNTIsNTkgTDUwLDU5IEw1MCw1NSBMNDYsNTUgTDQ2LDU5IEw0NCw1OSBMNDQsNTUgTDQxLDU1IEw0MSw1OSBMMzksNTkgTDM5LDU1IEwzNSw1NSBMMzUsNTkgTDMzLDU5IEwzMyw1NSBMMjksNTUgTDI5LDU5IEwyNyw1OSBMMjcsNTUgTDI2Ljg2NCw1NSBDMjUuODM2LDU1IDI1LDU0LjE2NCAyNSw1My4xMzYgTDI1LDUzIEwyMiw1MyBMMjIsNTEgTDI1LDUxIEwyNSw0NyBMMjIsNDcgTDIyLDQ1IEwyNSw0NSBMMjUsNDEgTDIyLDQxIEwyMiwzOSBMMjUsMzkgTDI1LDM2IEwyMiwzNiBMMjIsMzQgTDI1LDM0IEwyNSwzMCBMMjIsMzAgTDIyLDI4IEwyNSwyOCBMMjUsMjcuODY0IEMyNSwyNi44MzYgMjUuODM2LDI2IDI2Ljg2NCwyNiBMMjcsMjYgTDI3LDIyIEwyOSwyMiBMMjksMjYgTDMzLDI2IEwzMywyMiBMMzUsMjIgTDM1LDI2IEwzOSwyNiBMMzksMjIgTDQxLDIyIEw0MSwyNiBMNDQsMjYgTDQ0LDIyIEw0NiwyMiBMNDYsMjYgTDUwLDI2IEw1MCwyMiBMNTIsMjIgTDUyLDI2IEw1Mi4xMzYsMjYgQzUzLjE2NCwyNiA1NCwyNi44MzYgNTQsMjcuODY0IEw1NCwyOCBaIE00MSw2NS44NzYgQzQxLDY1Ljk0NCA0MC45NDQsNjYgNDAuODc2LDY2IEwxNC4xMjQsNjYgQzE0LjA1Niw2NiAxNCw2NS45NDQgMTQsNjUuODc2IEwxNCwzOS4xMjQgQzE0LDM5LjA1NiAxNC4wNTYsMzkgMTQuMTI0LDM5IEwyMCwzOSBMMjAsMzcgTDE0LjEyNCwzNyBDMTIuOTUzLDM3IDEyLDM3Ljk1MyAxMiwzOS4xMjQgTDEyLDY1Ljg3NiBDMTIsNjcuMDQ3IDEyLjk1Myw2OCAxNC4xMjQsNjggTDQwLjg3Niw2OCBDNDIuMDQ3LDY4IDQzLDY3LjA0NyA0Myw2NS44NzYgTDQzLDYxIEw0MSw2MSBMNDEsNjUuODc2IFogTTY4LDE0LjEyNCBMNjgsNDAuODc2IEM2OCw0Mi4wNDcgNjcuMDQ3LDQzIDY1Ljg3Niw0MyBMNjAsNDMgTDYwLDQxIEw2NS44NzYsNDEgQzY1Ljk0NCw0MSA2Niw0MC45NDQgNjYsNDAuODc2IEw2NiwxNC4xMjQgQzY2LDE0LjA1NiA2NS45NDQsMTQgNjUuODc2LDE0IEwzOS4xMjQsMTQgQzM5LjA1NiwxNCAzOSwxNC4wNTYgMzksMTQuMTI0IEwzOSwyMCBMMzcsMjAgTDM3LDE0LjEyNCBDMzcsMTIuOTUzIDM3Ljk1MywxMiAzOS4xMjQsMTIgTDY1Ljg3NiwxMiBDNjcuMDQ3LDEyIDY4LDEyLjk1MyA2OCwxNC4xMjQgTDY4LDE0LjEyNCBaIiBpZD0iQW1hem9uLUVDMl9JY29uXzY0X1NxdWlkIiBmaWxsPSIjRkZGRkZGIj48L3BhdGg+CiAgICA8L2c+Cjwvc3ZnPg==;" vertex="1" parent="1">
+          <mxGeometry x="750" y="552" width="80" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="f1" value="44s *1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=11;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="f2_staging" target="f2_snapshot" parent="1">
-          <mxGeometry x="-0.55" relative="1" as="geometry">
-            <mxPoint as="offset" x="44" y="0" />
-          </mxGeometry>
+        <mxCell id="f1" value="44s" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=16;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="f2_staging" target="f2_snapshot" parent="1">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="f2" value="FlexClone created" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=11;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="f2_snapshot" target="f2_clone" parent="1">
+        <mxCell id="f2" value="FlexClone created" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=16;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="f2_snapshot" target="f2_clone" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3" value="Finalize: under 60s" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=16;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="f2_clone" target="f2_split" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4" value="About 9 min later" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=16;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;dashPattern=8 4;" edge="1" source="f2_staging" target="f2_deleted" parent="1">
           <mxGeometry x="0" relative="1" as="geometry">
             <mxPoint as="offset" x="0" y="-14" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="f3" value="Finalize: under 60s *2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=11;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="f2_clone" target="f2_split" parent="1">
+        <mxCell id="f5" value="iSCSI keeps serving" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=16;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="f2_split" target="f2_target_ec2" parent="1">
           <mxGeometry x="0" relative="1" as="geometry">
             <mxPoint as="offset" x="0" y="-14" />
           </mxGeometry>
-        </mxCell>
-        <mxCell id="f4" value="About 9 min later *3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=11;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;dashed=1;dashPattern=8 4;" edge="1" source="f2_staging" target="f2_deleted" parent="1">
-          <mxGeometry x="0" relative="1" as="geometry">
-            <mxPoint as="offset" x="0" y="-14" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="f5" value="iSCSI keeps serving *4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;strokeColor=#232F3E;strokeWidth=1;fontSize=11;fontColor=#232F3E;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="f2_split" target="f2_target_ec2" parent="1">
-          <mxGeometry x="0" relative="1" as="geometry">
-            <mxPoint as="offset" x="0" y="-14" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="notes2" value="&lt;b&gt;Notes (measured on 8 GiB of data, 2026-09-04, ONTAP 9.18.1P3D1)&lt;/b&gt;&lt;br&gt;*1 &lt;b&gt;A metadata operation, not a copy&lt;/b&gt;&lt;br&gt;The SNAPSHOT phase creates a volume Snapshot: 44s for 8 GiB. Growth against data volume was measured at one point only&lt;br&gt;*2 &lt;b&gt;Finalize is the point of peak capacity&lt;/b&gt;&lt;br&gt;The split takes the clone from 35.5 MiB to 8.57 GiB physical. One extra copy of the migrated data is required&lt;br&gt;*3 &lt;b&gt;The gap before staging is deleted&lt;/b&gt;&lt;br&gt;About 9 minutes after the split completes. Both volumes hold physical capacity in that window (about 16.6 GiB total)&lt;br&gt;*4 &lt;b&gt;The split is non-disruptive&lt;/b&gt;&lt;br&gt;Mounts held, sha256 matched, and zero I/O errors or path-down events" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;strokeColor=#666666;fillColor=#F5F5F5;fontColor=#333333;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;" vertex="1" parent="1">
-          <mxGeometry x="40" y="570" width="1400" height="190" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
