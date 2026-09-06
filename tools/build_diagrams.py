@@ -306,6 +306,13 @@ LABELS: dict[str, dict[str, str]] = {
     # 1 行。2 行目に置いていた「（クライアント証明書）」はエッジのラベルと同じことを言って
     # いたので、エッジ側に寄せた。ラベルが 176px から 171px に縮み、縦線を跨がなくなる。
     "secrets_manager": {"ja": "AWS Secrets Manager", "en": "AWS Secrets Manager"},
+    # 管理エンドポイントの持ち主。箱の真上にアイコンを置き、その下にこの名前を出すことで、
+    # 箱が「どのサービスのエンドポイントか」が矢印を足さずに読める。アイコンから下へ矢印を
+    # 引くことはできない（アイコンの下はラベルの場所）ので、上下の隣接で示す。
+    "fsx_mgmt": {
+        "ja": "Amazon FSx for NetApp ONTAP",
+        "en": "Amazon FSx for NetApp ONTAP",
+    },
     "mgmt_endpoint": {
         "ja": "ONTAP 管理エンドポイント\nREST API / 443",
         "en": "ONTAP management endpoint\nREST API / 443",
@@ -619,40 +626,45 @@ def _control_path() -> Diagram:
         # 940 not 1000: at 1000 the export is 988px wide and the effective label size lands at
         # 14.3px, which clears the 14px floor by less than a rounding error in the exporter.
         width=940,
-        height=520,
+        # 525。管理エンドポイントの箱の上に FSx for ONTAP のアイコンとサービス名を積んだ分だけ
+        # 520 から縦に伸ばした。縦は幅を争わないので実効サイズは変わらない。
+        height=525,
         groups=(
-            Group("aws_cloud", "aws_cloud", 25, 30, 890, 450),
+            Group("aws_cloud", "aws_cloud", 25, 30, 890, 465),
             Group(
                 "vpc",
                 "vpc",
                 250,
                 90,
                 635,
-                350,
+                375,
                 gr_icon="group_vpc2",
                 kind="vpc",
                 dashed=True,
             ),
         ),
-        frames=(Frame("control_plane", "control_plane", 265, 140, 605, 260),),
-        boxes=(Box("mgmt_endpoint", "mgmt_endpoint", 590, 250, 260, 56),),
+        frames=(Frame("control_plane", "control_plane", 265, 140, 605, 290),),
+        boxes=(Box("mgmt_endpoint", "mgmt_endpoint", 590, 300, 260, 56),),
         nodes=(
             # Outside the VPC, on the left: both are AWS Transform's own, not the customer's.
             # 中心 130。AWS Transform と AWS PrivateLink の間隔を 140px 取るために左へ寄せて
             # ある。この区間には "Certificate auth"（144px）が載る。**反転前の版は間隔が
             # 90px で、EN のこのラベルが両隣のアイコンに 27px ずつ重なっていた。** JA の
             # 「証明書認証」は 80px なので JA だけ見ると問題が見えない。
-            Node("atx", "transform", "atx", *centred("transform", 130, 278)),
+            Node("atx", "transform", "atx", *centred("transform", 130, 328)),
             Node(
                 "secrets_manager",
                 "secrets_manager",
                 "secrets_manager",
-                *centred("secrets_manager", 130, 110),
+                *centred("secrets_manager", 130, 160),
             ),
-            Node("privatelink", "privatelink", "privatelink", *centred("privatelink", 350, 278)),
+            Node("privatelink", "privatelink", "privatelink", *centred("privatelink", 350, 328)),
             # 中心 490。500 だと "Network Load Balancer"（189px）の右端が管理エンドポイントの
             # 箱（590 から）に 4px 入る。
-            Node("nlb", "nlb", "nlb", *centred("nlb", 490, 278)),
+            Node("nlb", "nlb", "nlb", *centred("nlb", 490, 328)),
+            # 管理エンドポイントの箱（[590,850]、中心 720）の真上。矢印は引かない。アイコンの
+            # 下はラベルの場所なので下向きに線を出せず、上下の隣接と真ん中揃えで持ち主を示す。
+            Node("fsx_mgmt", "fsx_ontap", "fsx_mgmt", *centred("fsx_ontap", 720, 210)),
         ),
         edges=(
             Edge(
@@ -683,7 +695,7 @@ def _control_path() -> Diagram:
                 "e_cert",
                 exit_at=(0, 0.5),
                 entry_at=(0, 0.5),
-                points=((70, 110), (70, 278)),
+                points=((70, 160), (70, 328)),
                 offset=(0.15, 105, 0),
             ),
         ),
