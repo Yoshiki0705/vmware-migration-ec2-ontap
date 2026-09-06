@@ -42,7 +42,8 @@ IMAGE_DIR = ROOT / "docs" / "_assets" / "images"
 PNG_DIR = IMAGE_DIR / "png"
 
 FIGURES = (
-    "atx-fsxn-migration-overview",
+    "atx-fsxn-data-path",
+    "atx-fsxn-control-path",
     "atx-fsxn-finalize-flexclone",
 )
 

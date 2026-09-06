@@ -476,82 +476,58 @@ def centred(icon: str, cx: int, cy: int) -> tuple[int, int]:
     return cx - half, cy - half
 
 
-def _overview() -> Diagram:
-    """What the verification actually built, with the control path drawn separately.
+def _data_path() -> Diagram:
+    """What MGN writes where, from the source disk to the cut-over instance.
 
-    The control path is drawn because it is the part that surprised: MGN creates a Network
-    Load Balancer and a VPC endpoint service inside the customer VPC, and the public
-    documentation describes the outcome ("PrivateLink connectivity") without naming the
-    resources. Drawing only the data path is what left the NLB out of cost estimates.
+    Split out of a single 1500px "overview" figure that also carried the control path. At that
+    width the readability floor asks for `fontSize` 24, and the longest labels are parentheticals
+    under an 80px icon — 「（レプリケーションサーバー）」 is 224px at 16 alone — so a single row of
+    five columns cannot both meet the floor and keep its labels apart. Two figures each meet it.
 
-    Boot and data leave the replication server to different destinations, so those two
-    edges are labelled rather than colour-coded: colour cannot carry meaning under the
-    diagram standard, so the meaning has to be in the label.
+    Rows rather than one row: the branch into Amazon EBS and FSx for ONTAP is the point of the
+    figure, and stacking it costs height, which nothing here competes for.
+
+    Every edge leaves a box sideways and re-enters from the top or a side, never downwards — the
+    space below an icon belongs to its label. The two long hops therefore run out to a gutter on
+    the right and come back, which is why they carry explicit `points`.
     """
     return Diagram(
-        name="atx-fsxn-migration-overview",
-        diagram_id="atx-fsxn-migration-overview",
-        width=1500,
-        height=900,
-        # 下限を満たしていない。1500px のキャンバスでは下限が fontSize 24 で、その大きさでは
-        # 最長ラベル（「（レプリケーションサーバー）」と "Amazon Elastic Block Store"、
-        # いずれも 16px で 210px を超える）が横 1 列の桁に収まらない。上げるだけでは
-        # 読めない字が衝突した字に変わるだけなので、レイアウトが決まるまで据え置く。
-        #
-        # 縦積みは選べない。この図の Edge が書いているとおり、ラベルはアイコンの下に置くので
-        # エッジを下方向へ出せず、縦の連鎖にすると各エッジが自分のラベルを貫く。残る形は
-        # データ経路と管理経路への分割で、それは記事側の参照と alt text を変える判断になる。
-        # 詳細は diagram-font-debt.txt。
-        font_body=11,
-        font_group=12,
+        name="atx-fsxn-data-path",
+        diagram_id="atx-fsxn-data-path",
+        width=800,
+        height=1000,
         groups=(
-            Group("aws_cloud", "aws_cloud", 40, 40, 1420, 620),
+            Group("aws_cloud", "aws_cloud", 25, 30, 750, 930),
             Group(
                 "vpc",
                 "vpc",
-                80,
+                55,
                 90,
-                1000,
-                540,
+                690,
+                840,
                 gr_icon="group_vpc2",
                 kind="vpc",
                 dashed=True,
             ),
         ),
-        # A frame title sits at the top of the frame, so the first icon row starts far
-        # enough below the top edge that the title is not covered by an icon.
-        frames=(
-            Frame("data_plane", "data_plane", 110, 140, 940, 250),
-            Frame("control_plane", "control_plane", 110, 420, 940, 190),
-        ),
+        # 左端 70。アイコン列 190 に対し "Amazon FSx for NetApp ONTAP"（220px）は 80 から
+        # 始まるので、80 だとラベルが枠線に接する。右端は 690 で、最も右を走る配線（660）より外。
+        # 高さ 750。720 だと、カットオーバー先 EC2 の 2 行目のラベルが下の枠線に切られる。
+        # ラベルはアイコンの下 44px を使うので、最下段の下端はアイコンではなくラベルで決まる。
+        frames=(Frame("data_plane", "data_plane", 70, 140, 620, 750),),
+        # 左に寄せてある。右側はエッジの縦走り専用。ボックスを右へ置くと、行をまたぐ 2 本が
+        # ボックスを貫いた。アイコン列は 190 で、180 だと英語の "Amazon Elastic Block Store"
+        # （212px）が枠線を 6px はみ出す。日本語は収まるので EN を別に見ないと出てこない。
         boxes=(
-            Box("boot_volume", "boot_volume", 690, 185, 180, 40),
-            Box("staging_flexvol", "staging_flexvol", 680, 300, 190, 54),
-            Box("mgmt_endpoint", "mgmt_endpoint", 150, 470, 220, 54),
+            Box("boot_volume", "boot_volume", 300, 405, 220, 50),
+            Box("staging_flexvol", "staging_flexvol", 300, 592, 230, 56),
         ),
         nodes=(
-            Node("source_ec2", "ec2", "source_ec2", *centred("ec2", 180, 260)),
-            Node("repl_ec2", "ec2", "repl_ec2", *centred("ec2", 420, 260)),
-            Node("ebs", "ebs", "ebs", *centred("ebs", 600, 205)),
-            Node("fsx_staging", "fsx_ontap", "fsx_staging", *centred("fsx_ontap", 600, 327)),
-            Node("target_ec2", "ec2", "target_ec2", *centred("ec2", 1010, 260)),
-            # The control path runs right to left so each hop is adjacent to the next.
-            # Laid out left to right, the AWS Transform edge crossed the management
-            # endpoint box on its way to AWS PrivateLink.
-            Node("nlb", "nlb", "nlb", *centred("nlb", 480, 497)),
-            Node(
-                "privatelink",
-                "privatelink",
-                "privatelink",
-                *centred("privatelink", 700, 497),
-            ),
-            Node(
-                "secrets_manager",
-                "secrets_manager",
-                "secrets_manager",
-                *centred("secrets_manager", 1250, 260),
-            ),
-            Node("atx", "transform", "atx", *centred("transform", 1250, 497)),
+            Node("source_ec2", "ec2", "source_ec2", *centred("ec2", 190, 235)),
+            Node("repl_ec2", "ec2", "repl_ec2", *centred("ec2", 470, 235)),
+            Node("ebs", "ebs", "ebs", *centred("ebs", 190, 430)),
+            Node("fsx_staging", "fsx_ontap", "fsx_staging", *centred("fsx_ontap", 190, 620)),
+            Node("target_ec2", "ec2", "target_ec2", *centred("ec2", 400, 790)),
         ),
         edges=(
             Edge(
@@ -563,40 +539,109 @@ def _overview() -> Diagram:
                 entry_at=(0, 0.5),
                 offset=(0, 0, -14),
             ),
+            # Out to the gutter and back, entering from the top. The return leg is placed below
+            # both labels on the row above it: at y=360 it clears the source label, which ends at
+            # 315, and stops short of the Amazon EBS icon, which starts at 390.
             Edge(
                 "e2",
                 "repl_ec2",
                 "ebs",
                 "e_boot",
                 exit_at=(1, 0.5),
-                entry_at=(0, 0.5),
-                offset=(-0.45, 0, -14),
+                entry_at=(0.5, 0),
+                points=((620, 235), (620, 365), (190, 365)),
+                # 行をまたぐ帰り道の上ではなく、入口直前の縦の区間の横に置く。帰り道の
+                # 中点は上の行のラベル帯に届いてしまい、「（レプリケーションサーバー）」と重なった。
+                offset=(0.9, 46, 0),
             ),
+            # Leaves from lower on the same side, so the two branches do not share a start point,
+            # and returns at y=555 — below the Amazon EBS label, above the FSx for ONTAP icon.
             Edge(
                 "e3",
                 "repl_ec2",
                 "fsx_staging",
                 "e_data",
-                exit_at=(1, 0.5),
-                entry_at=(0, 0.5),
-                offset=(-0.45, 0, 14),
+                exit_at=(1, 0.75),
+                entry_at=(0.5, 0),
+                points=((660, 255), (660, 545), (190, 545)),
+                offset=(0.9, 46, 0),
             ),
+            # No label: the box beside each icon already names what the leg carries.
             Edge("e4", "ebs", "boot_volume", exit_at=(1, 0.5), entry_at=(0, 0.5)),
             Edge("e5", "fsx_staging", "staging_flexvol", exit_at=(1, 0.5), entry_at=(0, 0.5)),
-            # No label: the boot box and the Amazon EBS icon beside it already say what
-            # this leg is, and the gap to the target has no clean midpoint for one.
-            Edge("e6", "boot_volume", "target_ec2", exit_at=(1, 0.5), entry_at=(0, 0.3)),
+            # ボックスの下端から出す。ボックスは fillColor=none なので、右端から出ると配線が
+            # ボックス内の文字と同じ高さを走り、文字を貫いて見える。ボックスの下にラベルは
+            # 無いので（文字は内側）、下方向へ出してよい。
+            Edge(
+                "e6",
+                "boot_volume",
+                "target_ec2",
+                exit_at=(0.9, 1),
+                entry_at=(1, 0.5),
+                points=((498, 520), (660, 520), (660, 790)),
+            ),
             Edge(
                 "e7",
                 "staging_flexvol",
                 "target_ec2",
                 "e_iscsi",
-                exit_at=(1, 0.5),
-                entry_at=(0, 0.7),
-                offset=(0, 0, 14),
+                exit_at=(0.5, 1),
+                entry_at=(0.7, 0),
+                offset=(0, 30, 0),
             ),
+        ),
+    )
+
+
+def _control_path() -> Diagram:
+    """How AWS Transform reaches the ONTAP management endpoint, and where the certificate lives.
+
+    Drawn separately because it is the part that surprised: MGN creates a Network Load Balancer
+    and a VPC endpoint service inside the customer VPC, and the public documentation describes the
+    outcome ("PrivateLink connectivity") without naming the resources. Leaving it out of the data
+    path figure is what left the NLB out of cost estimates.
+
+    Right to left, so each hop is adjacent to the next. Laid out left to right, the AWS Transform
+    edge crossed the management endpoint box on its way to AWS PrivateLink.
+    """
+    return Diagram(
+        name="atx-fsxn-control-path",
+        diagram_id="atx-fsxn-control-path",
+        # 940 not 1000: at 1000 the export is 988px wide and the effective label size lands at
+        # 14.3px, which clears the 14px floor by less than a rounding error in the exporter.
+        width=940,
+        height=520,
+        groups=(
+            Group("aws_cloud", "aws_cloud", 25, 30, 890, 450),
+            Group(
+                "vpc",
+                "vpc",
+                55,
+                90,
+                640,
+                350,
+                gr_icon="group_vpc2",
+                kind="vpc",
+                dashed=True,
+            ),
+        ),
+        frames=(Frame("control_plane", "control_plane", 80, 140, 600, 260),),
+        boxes=(Box("mgmt_endpoint", "mgmt_endpoint", 105, 250, 260, 56),),
+        nodes=(
+            Node("nlb", "nlb", "nlb", *centred("nlb", 450, 278)),
+            Node("privatelink", "privatelink", "privatelink", *centred("privatelink", 610, 278)),
+            # Outside the VPC: both are AWS Transform's own, not the customer's.
+            Node("atx", "transform", "atx", *centred("transform", 780, 278)),
+            Node(
+                "secrets_manager",
+                "secrets_manager",
+                "secrets_manager",
+                *centred("secrets_manager", 780, 110),
+            ),
+        ),
+        edges=(
             Edge(
-                "e8",
+                "e_pl_edge",
                 "atx",
                 "privatelink",
                 "e_pl",
@@ -606,15 +651,19 @@ def _overview() -> Diagram:
             ),
             Edge("e9", "privatelink", "nlb", exit_at=(0, 0.5), entry_at=(1, 0.5)),
             Edge("e10", "nlb", "mgmt_endpoint", exit_at=(0, 0.5), entry_at=(1, 0.5)),
+            # Around the right rather than straight up: straight up runs through the Secrets
+            # Manager label, which sits under its icon. The label is nudged left of the riser so
+            # it does not reach the AWS Cloud border.
             Edge(
-                "e11",
+                "e_cert_edge",
                 "atx",
                 "secrets_manager",
                 "e_cert",
-                exit_at=(0.5, 0),
-                entry_at=(0.5, 1),
+                exit_at=(1, 0.5),
+                entry_at=(1, 0.5),
                 dashed=True,
-                offset=(0, 62, 0),
+                points=((870, 278), (870, 110)),
+                offset=(0, -60, 0),
             ),
         ),
     )
@@ -709,7 +758,7 @@ def _finalize() -> Diagram:
     )
 
 
-DIAGRAMS = (_overview(), _finalize())
+DIAGRAMS = (_data_path(), _control_path(), _finalize())
 
 # --- rendering ---------------------------------------------------------------------------
 
@@ -883,10 +932,26 @@ def render(diagram: Diagram, lang: str, theme: str, uris: dict[tuple[str, str], 
             f'style={quoteattr(style)} edge="1" source={quoteattr(edge.source)} '
             f'target={quoteattr(edge.target)} parent="1">'
         )
+        # `points` used to be accepted by the dataclass and never written, so every waypoint in
+        # every spec was silently discarded and draw.io routed each edge itself. It looked fine
+        # wherever its own choice happened to match, and produced an edge straight through the
+        # middle of a transparent box where it did not — visible only in the export. A field that
+        # is read but not emitted is worse than a missing one: the spec says one thing and the
+        # picture shows another. `--check` cannot catch it either, since it compares the written
+        # file against the same renderer.
+        geometry = []
         if edge.offset is not None:
             along, dx, dy = edge.offset
-            lines.append(f'          <mxGeometry x="{along}" relative="1" as="geometry">')
-            lines.append(f'            <mxPoint as="offset" x="{dx}" y="{dy}" />')
+            geometry.append(f'            <mxPoint as="offset" x="{dx}" y="{dy}" />')
+        if edge.points:
+            geometry.append('            <Array as="points">')
+            geometry += [f'              <mxPoint x="{x}" y="{y}" />' for x, y in edge.points]
+            geometry.append("            </Array>")
+        if geometry:
+            along = edge.offset[0] if edge.offset is not None else None
+            attrs = "" if along is None else f'x="{along}" '
+            lines.append(f'          <mxGeometry {attrs}relative="1" as="geometry">')
+            lines += geometry
             lines.append("          </mxGeometry>")
         else:
             lines.append('          <mxGeometry relative="1" as="geometry" />')
@@ -1057,6 +1122,15 @@ def main() -> int:
                 ):
                     if f'id="{cid}"' not in xml:
                         raise SystemExit(f"build_diagrams: cell {cid!r} missing from {path}")
+                # Assert the waypoints reached the file, not that the spec listed them. They were
+                # dropped for as long as the field existed, and the only symptom was a line
+                # crossing a transparent box in the export.
+                wanted = sum(len(edge.points) for edge in diagram.edges)
+                got = xml.count("<mxPoint x=")
+                if wanted != got:
+                    raise SystemExit(
+                        f"build_diagrams: {path.name} carries {got} waypoint(s), spec has {wanted}"
+                    )
                 print(f"  wrote     {path.relative_to(ROOT)}")
                 if args.export:
                     export(diagram, lang, theme)
